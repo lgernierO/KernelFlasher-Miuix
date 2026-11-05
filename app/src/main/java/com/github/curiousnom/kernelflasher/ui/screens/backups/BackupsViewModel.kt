@@ -82,7 +82,6 @@ class BackupsViewModel(
     fun refresh(context: Context) {
         val oldDir = context.getExternalFilesDir(null)
         val oldBackupsDir = File(oldDir, "backups")
-        @Deprecated("Backup migration will be removed in the first stable release")
         _needsMigration.value = oldBackupsDir.exists() && oldBackupsDir.listFiles()?.size!! > 0
         @SuppressLint("SdCardPath")
         val externalDir = File("/sdcard/KernelFlasher")

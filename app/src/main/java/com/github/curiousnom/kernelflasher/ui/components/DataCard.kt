@@ -1,64 +1,44 @@
 package com.github.curiousnom.kernelflasher.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun DataCard(
     title: String,
     icon: ImageVector? = null,
-    button: @Composable (() -> Unit)? = null,
     content: @Composable (ColumnScope.() -> Unit)? = null
 ) {
-    Card {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                modifier = Modifier.weight(1.0f, fill = false),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (icon != null) {
+    Card(Modifier.fillMaxWidth()) {
+        BasicComponent(
+            title = title,
+            startAction = if (icon != null) {
+                {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        tint = MiuixTheme.colorScheme.onSurfaceContainer,
+                        modifier = Modifier.size(24.dp),
                     )
-                    Spacer(Modifier.width(10.dp))
                 }
-                Text(
-                    text = title,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    )
-                )
-            }
-            if (button != null) {
-                button()
-            }
-        }
+            } else null,
+        )
         if (content != null) {
-            Spacer(Modifier.height(12.dp))
-            content()
+            Column(
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                content = content,
+            )
         }
     }
 }

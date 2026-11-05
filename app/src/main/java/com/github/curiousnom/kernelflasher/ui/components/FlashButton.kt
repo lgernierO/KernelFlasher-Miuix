@@ -1,81 +1,76 @@
 package com.github.curiousnom.kernelflasher.ui.components
 
 import android.net.Uri
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FileOpen
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.ExperimentalUnitApi
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
 import com.github.curiousnom.kernelflasher.MainActivity
 import kotlinx.serialization.ExperimentalSerializationApi
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@ExperimentalAnimationApi
-@ExperimentalMaterialApi
-@ExperimentalMaterial3Api
-@ExperimentalSerializationApi
-@ExperimentalUnitApi
+@OptIn(
+    ExperimentalSerializationApi::class,
+)
 @Composable
 fun FlashButton(
     buttonText: String,
-    callback: (uri: Uri) -> Unit
+    callback: (uri: Uri) -> Unit,
+    enabled: Boolean = true,
 ) {
-    val mainActivity = LocalContext.current as MainActivity
-    val result = remember { mutableStateOf<Uri?>(null) }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
-        result.value = it
-        if (it == null) {
-            mainActivity.isAwaitingResult = false
+    val mainActivity = LocalActivity.current as MainActivity
+    var pendingUri by remember { mutableStateOf<Uri?>(null) }
+    val lifecycleState by mainActivity.lifecycle.currentStateFlow.collectAsState()
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        pendingUri = uri
+        if (uri == null) mainActivity.isAwaitingResult = false
+    }
+    LaunchedEffect(pendingUri, lifecycleState) {
+        val uri = pendingUri
+        if (uri != null && lifecycleState.isAtLeast(Lifecycle.State.RESUMED)) {
+            // Keep resume refresh blocked until the picker result has been consumed.
+            pendingUri = null
+            try {
+                callback(uri)
+            } finally {
+                mainActivity.isAwaitingResult = false
+            }
         }
     }
-    FilledTonalButton(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-        ),
+
+    Button(
         onClick = {
             mainActivity.isAwaitingResult = true
             launcher.launch("*/*")
-        }
+        },
+        modifier = Modifier.fillMaxWidth(),
+        minHeight = 48.dp,
+        enabled = enabled,
     ) {
         Icon(
             imageVector = Icons.Rounded.FileOpen,
             contentDescription = null,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(24.dp),
         )
         Spacer(Modifier.width(8.dp))
-        Text(
-            text = buttonText,
-            style = MaterialTheme.typography.labelLarge
-        )
-    }
-    result.value?.let { uri ->
-        if (mainActivity.isAwaitingResult) {
-            callback.invoke(uri)
-        }
-        mainActivity.isAwaitingResult = false
+        Text(text = buttonText, style = MiuixTheme.textStyles.button)
     }
 }

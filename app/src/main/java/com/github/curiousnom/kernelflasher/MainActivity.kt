@@ -12,30 +12,22 @@ import android.view.View
 import android.view.ViewTreeObserver
 import android.view.animation.AccelerateInterpolator
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.ExperimentalUnitApi
 import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavController
+import com.github.curiousnom.kernelflasher.ui.navigation.MiuixNavHost
+import com.github.curiousnom.kernelflasher.ui.navigation.miuixPage
+import com.github.curiousnom.kernelflasher.ui.navigation.rememberFlasherNavigation
 import com.github.curiousnom.kernelflasher.ui.screens.RefreshableScreen
 import com.github.curiousnom.kernelflasher.ui.screens.backups.BackupsContent
 import com.github.curiousnom.kernelflasher.ui.screens.backups.SlotBackupsContent
@@ -57,11 +49,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import java.io.File
 
 
-@ExperimentalAnimationApi
-@ExperimentalMaterialApi
-@ExperimentalMaterial3Api
 @ExperimentalSerializationApi
-@ExperimentalUnitApi
 class MainActivity : ComponentActivity() {
     companion object {
         const val TAG: String = "MainActivity"
@@ -194,7 +182,9 @@ class MainActivity : ComponentActivity() {
             return
         }
         setContent {
-            val navController = rememberNavController()
+            val navigation = rememberFlasherNavigation()
+            val navigator = navigation.navigator
+            val navController = navigation.navController
             viewModel = viewModel {
                 val application = checkNotNull(get(ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY))
                 MainViewModel(application, fileSystemManager, navController)
@@ -210,11 +200,10 @@ class MainActivity : ComponentActivity() {
                     val backupsViewModel = mainViewModel.backups
                     val updatesViewModel = mainViewModel.updates
                     val rebootViewModel = mainViewModel.reboot
-                    BackHandler(enabled = mainViewModel.isRefreshing, onBack = {})
-                    val slotContent: @Composable AnimatedVisibilityScope.(NavBackStackEntry) -> Unit = { backStackEntry ->
+                    val slotContent: @Composable (NavBackStackEntry) -> Unit = { backStackEntry ->
                         val slotSuffix = backStackEntry.arguments?.getString("slotSuffix") ?: ""
                         val slotViewModel = if (slotSuffix == "_b") slotViewModelB else slotViewModelA
-                        if (slotViewModel!!.wasFlashSuccess != null && listOf("slot{slotSuffix}", "slot").any { navController.currentDestination!!.route.equals(it) }) {
+                        if (slotViewModel!!.wasFlashSuccess != null && isCurrentEntry(navController, backStackEntry)) {
                             slotViewModel.clearFlash(this@MainActivity)
                         }
                         val title = stringResource(if (slotSuffix == "_a") R.string.slot_a else if (slotSuffix == "_b") R.string.slot_b else R.string.slot)
@@ -223,157 +212,167 @@ class MainActivity : ComponentActivity() {
                         }
 
                     }
-                    val slotFlashContent: @Composable AnimatedVisibilityScope.(NavBackStackEntry) -> Unit = { backStackEntry ->
+                    val slotFlashContent: @Composable (NavBackStackEntry) -> Unit = { backStackEntry ->
                         val slotSuffix = backStackEntry.arguments?.getString("slotSuffix") ?: ""
                         val slotViewModel = if (slotSuffix == "_b") slotViewModelB else slotViewModelA
-                        val currentRoute = navController.currentDestination?.route ?: ""
+                        val currentRoute = backStackEntry.destination.route.orEmpty()
                         val title = stringResource(
-                            if (currentRoute.endsWith("/backup")) R.string.backup
+                            if ("backup" in currentRoute.split('/')) R.string.backup
                             else R.string.flash
                         )
                         RefreshableScreen(mainViewModel, navController, title = title) {
-                            SlotFlashContent(slotViewModel!!, slotSuffix, navController)
+                            SlotFlashContent(slotViewModel!!, slotSuffix, navController, currentRoute)
                         }
                     }
-                    val slotBackupsContent: @Composable AnimatedVisibilityScope.(NavBackStackEntry) -> Unit = { backStackEntry ->
+                    val slotBackupsContent: @Composable (NavBackStackEntry) -> Unit = { backStackEntry ->
                         val slotSuffix = backStackEntry.arguments?.getString("slotSuffix") ?: ""
                         val slotViewModel = if (slotSuffix == "_b") slotViewModelB else slotViewModelA
-                        if (backStackEntry.arguments?.getString("backupId") != null) {
-                            backupsViewModel.currentBackup = backStackEntry.arguments?.getString("backupId")
-                        } else {
-                            backupsViewModel.clearCurrent()
+                        val backupId = backStackEntry.arguments?.getString("backupId")
+                        if (isCurrentEntry(navController, backStackEntry)) {
+                            if (backupId != null) {
+                                backupsViewModel.currentBackup = backupId
+                            } else {
+                                backupsViewModel.clearCurrent()
+                            }
                         }
                         RefreshableScreen(mainViewModel, navController, title = stringResource(R.string.backups)) {
-                            SlotBackupsContent(slotViewModel!!, backupsViewModel, slotSuffix, navController)
+                            SlotBackupsContent(
+                                slotViewModel!!,
+                                backupsViewModel,
+                                slotSuffix,
+                                navController,
+                                backStackEntry.destination.route.orEmpty(),
+                                backupId
+                            )
                         }
                     }
-                    val slotBackupFlashContent: @Composable AnimatedVisibilityScope.(NavBackStackEntry) -> Unit = { backStackEntry ->
+                    val slotBackupFlashContent: @Composable (NavBackStackEntry) -> Unit = { backStackEntry ->
                         val slotSuffix = backStackEntry.arguments?.getString("slotSuffix") ?: ""
                         val slotViewModel = if (slotSuffix == "_b") slotViewModelB else slotViewModelA
-                        backupsViewModel.currentBackup = backStackEntry.arguments?.getString("backupId")
-                        if (backupsViewModel.backups.containsKey(backupsViewModel.currentBackup)) {
+                        val backupId = backStackEntry.arguments?.getString("backupId")
+                        if (isCurrentEntry(navController, backStackEntry)) {
+                            backupsViewModel.currentBackup = backupId
+                        }
+                        if (backupsViewModel.backups.containsKey(backupId)) {
                             RefreshableScreen(mainViewModel, navController, title = stringResource(R.string.flash)) {
-                                SlotFlashContent(slotViewModel!!, slotSuffix, navController)
+                                SlotFlashContent(
+                                    slotViewModel!!,
+                                    slotSuffix,
+                                    navController,
+                                    backStackEntry.destination.route.orEmpty()
+                                )
                             }
                         }
 
                     }
-                    NavHost(
+                    MiuixNavHost(
                         navController = navController,
+                        navigator = navigator,
                         startDestination = "main",
-                        enterTransition = {
-                            slideIntoContainer(
-                                towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                initialOffset = { (it * 0.12f).toInt() }
-                            ) + fadeIn(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
-                        },
-                        exitTransition = {
-                            slideOutOfContainer(
-                                towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                                targetOffset = { -(it * 0.08f).toInt() }
-                            ) + fadeOut(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing))
-                        },
-                        popEnterTransition = {
-                            slideIntoContainer(
-                                towards = AnimatedContentTransitionScope.SlideDirection.End,
-                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                initialOffset = { -(it * 0.08f).toInt() }
-                            ) + fadeIn(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
-                        },
-                        popExitTransition = {
-                            slideOutOfContainer(
-                                towards = AnimatedContentTransitionScope.SlideDirection.End,
-                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                                targetOffset = { (it * 0.12f).toInt() }
-                            ) + fadeOut(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing))
-                        }
+                        isBusy = mainViewModel.isRefreshing,
                     ) {
-                        composable("main") {
-                            RefreshableScreen(mainViewModel, navController, swipeEnabled = true) {
+                        miuixPage("main") {
+                            RefreshableScreen(
+                                mainViewModel,
+                                navController,
+                                swipeEnabled = true,
+                                showBackButton = false
+                            ) {
                                 MainContent(mainViewModel, navController)
                             }
                         }
                         if (mainViewModel.isAb) {
-                            composable("slot{slotSuffix}", content = slotContent)
-                            composable("slot{slotSuffix}/flash", content = slotFlashContent)
-                            composable("slot{slotSuffix}/flash/ak3", content = slotFlashContent)
-                            composable("slot{slotSuffix}/flash/image", content = slotFlashContent)
-                            composable("slot{slotSuffix}/flash/image/flash", content = slotFlashContent)
-                            composable("slot{slotSuffix}/backup", content = slotFlashContent)
-                            composable("slot{slotSuffix}/backup/backup", content = slotFlashContent)
-                            composable("slot{slotSuffix}/backups", content = slotBackupsContent)
-                            composable("slot{slotSuffix}/backups/{backupId}", content = slotBackupsContent)
-                            composable("slot{slotSuffix}/backups/{backupId}/restore", content = slotBackupsContent)
-                            composable("slot{slotSuffix}/backups/{backupId}/restore/restore", content = slotBackupsContent)
-                            composable("slot{slotSuffix}/backups/{backupId}/flash/ak3", content = slotBackupFlashContent)
+                            miuixPage("slot{slotSuffix}", content = slotContent)
+                            miuixPage("slot{slotSuffix}/flash", content = slotFlashContent)
+                            miuixPage("slot{slotSuffix}/flash/ak3", content = slotFlashContent)
+                            miuixPage("slot{slotSuffix}/flash/image", content = slotFlashContent)
+                            miuixPage("slot{slotSuffix}/flash/image/flash", content = slotFlashContent)
+                            miuixPage("slot{slotSuffix}/backup", content = slotFlashContent)
+                            miuixPage("slot{slotSuffix}/backup/backup", content = slotFlashContent)
+                            miuixPage("slot{slotSuffix}/backups", content = slotBackupsContent)
+                            miuixPage("slot{slotSuffix}/backups/{backupId}", content = slotBackupsContent)
+                            miuixPage("slot{slotSuffix}/backups/{backupId}/restore", content = slotBackupsContent)
+                            miuixPage("slot{slotSuffix}/backups/{backupId}/restore/restore", content = slotBackupsContent)
+                            miuixPage("slot{slotSuffix}/backups/{backupId}/flash/ak3", content = slotBackupFlashContent)
                         } else {
-                            composable("slot", content = slotContent)
-                            composable("slot/flash", content = slotFlashContent)
-                            composable("slot/flash/ak3", content = slotFlashContent)
-                            composable("slot/flash/image", content = slotFlashContent)
-                            composable("slot/flash/image/flash", content = slotFlashContent)
-                            composable("slot/backup", content = slotFlashContent)
-                            composable("slot/backup/backup", content = slotFlashContent)
-                            composable("slot/backups", content = slotBackupsContent)
-                            composable("slot/backups/{backupId}", content = slotBackupsContent)
-                            composable("slot/backups/{backupId}/restore", content = slotBackupsContent)
-                            composable("slot/backups/{backupId}/restore/restore", content = slotBackupsContent)
-                            composable("slot/backups/{backupId}/flash/ak3", content = slotBackupFlashContent)
+                            miuixPage("slot", content = slotContent)
+                            miuixPage("slot/flash", content = slotFlashContent)
+                            miuixPage("slot/flash/ak3", content = slotFlashContent)
+                            miuixPage("slot/flash/image", content = slotFlashContent)
+                            miuixPage("slot/flash/image/flash", content = slotFlashContent)
+                            miuixPage("slot/backup", content = slotFlashContent)
+                            miuixPage("slot/backup/backup", content = slotFlashContent)
+                            miuixPage("slot/backups", content = slotBackupsContent)
+                            miuixPage("slot/backups/{backupId}", content = slotBackupsContent)
+                            miuixPage("slot/backups/{backupId}/restore", content = slotBackupsContent)
+                            miuixPage("slot/backups/{backupId}/restore/restore", content = slotBackupsContent)
+                            miuixPage("slot/backups/{backupId}/flash/ak3", content = slotBackupFlashContent)
                         }
-                        composable("backups") {
-                            backupsViewModel.clearCurrent()
+                        miuixPage("backups") { backStackEntry ->
+                            if (isCurrentEntry(navController, backStackEntry)) {
+                                backupsViewModel.clearCurrent()
+                            }
                             RefreshableScreen(mainViewModel, navController, title = stringResource(R.string.backups)) {
-                                BackupsContent(backupsViewModel, navController)
+                                BackupsContent(backupsViewModel, navController, backupId = null)
                             }
                         }
-                        composable("backups/{backupId}") { backStackEntry ->
-                            backupsViewModel.currentBackup = backStackEntry.arguments?.getString("backupId")
-                            if (backupsViewModel.backups.containsKey(backupsViewModel.currentBackup)) {
+                        miuixPage("backups/{backupId}") { backStackEntry ->
+                            val backupId = backStackEntry.arguments?.getString("backupId")
+                            if (isCurrentEntry(navController, backStackEntry)) {
+                                backupsViewModel.currentBackup = backupId
+                            }
+                            if (backupsViewModel.backups.containsKey(backupId)) {
                                 RefreshableScreen(mainViewModel, navController, title = stringResource(R.string.backup)) {
-                                    BackupsContent(backupsViewModel, navController)
+                                    BackupsContent(backupsViewModel, navController, backupId)
                                 }
                             }
                         }
-                        composable("updates") {
-                            updatesViewModel.clearCurrent()
+                        miuixPage("updates") { backStackEntry ->
+                            if (isCurrentEntry(navController, backStackEntry)) {
+                                updatesViewModel.clearCurrent()
+                            }
                             RefreshableScreen(mainViewModel, navController, title = stringResource(R.string.updates)) {
                                 UpdatesContent(updatesViewModel, navController)
                             }
                         }
-                        composable("updates/add") {
+                        miuixPage("updates/add") {
                             RefreshableScreen(mainViewModel, navController, title = stringResource(R.string.add)) {
                                 UpdatesAddContent(updatesViewModel, navController)
                             }
                         }
-                        composable("updates/view/{updateId}") { backStackEntry ->
+                        miuixPage("updates/view/{updateId}") { backStackEntry ->
                             val updateId = backStackEntry.arguments?.getString("updateId")!!.toInt()
                             val currentUpdate = updatesViewModel.updates.firstOrNull { it.id == updateId }
-                            updatesViewModel.currentUpdate = currentUpdate
-                            if (updatesViewModel.currentUpdate != null) {
-                                // TODO: enable swipe refresh
+                            if (isCurrentEntry(navController, backStackEntry)) {
+                                updatesViewModel.currentUpdate = currentUpdate
+                            }
+                            if (currentUpdate != null) {
                                 RefreshableScreen(mainViewModel, navController, title = stringResource(R.string.updates)) {
-                                    UpdatesViewContent(updatesViewModel, navController)
+                                    UpdatesViewContent(updatesViewModel, navController, currentUpdate)
                                 }
                             }
                         }
-                        composable("updates/view/{updateId}/changelog") { backStackEntry ->
+                        miuixPage("updates/view/{updateId}/changelog") { backStackEntry ->
                             val updateId = backStackEntry.arguments?.getString("updateId")!!.toInt()
                             val currentUpdate = updatesViewModel.updates.firstOrNull { it.id == updateId }
-                            updatesViewModel.currentUpdate = currentUpdate
-                            if (updatesViewModel.currentUpdate != null) {
+                            if (isCurrentEntry(navController, backStackEntry)) {
+                                updatesViewModel.currentUpdate = currentUpdate
+                            }
+                            val changelog = remember(backStackEntry.id) {
+                                updatesViewModel.changelog.orEmpty()
+                            }
+                            if (currentUpdate != null) {
                                 RefreshableScreen(mainViewModel, navController, title = stringResource(R.string.changelog)) {
-                                    UpdatesChangelogContent(updatesViewModel, navController)
+                                    UpdatesChangelogContent(currentUpdate, changelog)
                                 }
                             }
                         }
-                        composable("reboot") {
+                        miuixPage("reboot") {
                             RefreshableScreen(mainViewModel, navController, title = stringResource(R.string.reboot)) {
-                                RebootContent(rebootViewModel, navController)
+                                RebootContent(rebootViewModel)
                             }
                         }
-                        composable("error/{error}") { backStackEntry ->
+                        miuixPage("error/{error}") { backStackEntry ->
                             val error = backStackEntry.arguments?.getString("error")
                             ErrorScreen(error!!)
                         }
@@ -393,4 +392,13 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+@Composable
+private fun isCurrentEntry(navController: NavController, entry: NavBackStackEntry): Boolean {
+    val currentEntry by navController.currentBackStackEntryFlow.collectAsState(
+        initial = navController.currentBackStackEntry
+    )
+    // Covered and predictive-back preview entries must not reset the active operation's state.
+    return currentEntry?.id == entry.id && navController.currentBackStackEntry?.id == entry.id
 }

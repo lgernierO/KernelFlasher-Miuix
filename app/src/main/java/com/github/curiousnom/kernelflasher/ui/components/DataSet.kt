@@ -2,31 +2,28 @@ package com.github.curiousnom.kernelflasher.ui.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun DataSet(
     label: String,
-    labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    labelStyle: TextStyle = MaterialTheme.typography.labelMedium,
     content: @Composable (ColumnScope.() -> Unit)
 ) {
-    Spacer(Modifier.height(4.dp))
-    Text(
+    Spacer(Modifier.height(12.dp))
+    SmallTitle(
         text = label,
-        color = labelColor,
-        style = labelStyle
+        textColor = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        insideMargin = PaddingValues(0.dp),
     )
-    Column(Modifier.padding(start = 12.dp, top = 2.dp)) {
+    Column(Modifier.padding(top = 4.dp)) {
         content()
     }
 }

@@ -1,55 +1,46 @@
 package com.github.curiousnom.kernelflasher.ui.screens.updates
 
-import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.ExperimentalUnitApi
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
+import com.github.curiousnom.kernelflasher.common.types.room.updates.Update
 import com.github.curiousnom.kernelflasher.ui.components.DataCard
 import kotlinx.serialization.ExperimentalSerializationApi
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@Suppress("UnusedReceiverParameter")
-@ExperimentalMaterial3Api
 @ExperimentalSerializationApi
-@ExperimentalUnitApi
 @Composable
-fun ColumnScope.UpdatesChangelogContent(
-    viewModel: UpdatesViewModel,
-    @Suppress("UNUSED_PARAMETER") ignoredNavController: NavController
+fun UpdatesChangelogContent(
+    currentUpdate: Update?,
+    changelog: String
 ) {
-    viewModel.currentUpdate?.let { currentUpdate ->
+    currentUpdate?.let { update ->
         DataCard(
-            title = currentUpdate.kernelName,
+            title = update.kernelName,
             icon = Icons.Rounded.Description
         )
-        Spacer(Modifier.height(14.dp))
-        Surface(
+        Spacer(Modifier.height(12.dp))
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh
+            insideMargin = PaddingValues(16.dp)
         ) {
-            Text(
-                text = viewModel.changelog ?: "",
-                color = MaterialTheme.colorScheme.onSurface,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp,
-                lineHeight = 18.sp,
-                modifier = Modifier.padding(16.dp)
-            )
+            SelectionContainer {
+                Text(
+                    text = changelog,
+                    style = MiuixTheme.textStyles.paragraph,
+                    color = MiuixTheme.colorScheme.onSurfaceContainer,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }

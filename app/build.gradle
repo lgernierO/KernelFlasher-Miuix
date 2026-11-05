@@ -1,12 +1,29 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.devtools.ksp)
-    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
 }
 
+def signingEnvironment = [
+    keystore: providers.environmentVariable('SIGNING_KEYSTORE_PATH').orNull,
+    storePassword: providers.environmentVariable('SIGNING_STORE_PASSWORD').orNull,
+    keyAlias: providers.environmentVariable('SIGNING_KEY_ALIAS').orNull,
+    keyPassword: providers.environmentVariable('SIGNING_KEY_PASSWORD').orNull,
+]
+def hasSigningEnvironment = signingEnvironment.values().any { it != null && !it.isBlank() }
+def hasCompleteSigningEnvironment = signingEnvironment.values().every { it != null && !it.isBlank() }
+if (hasSigningEnvironment && !hasCompleteSigningEnvironment) {
+    throw new GradleException('Set all four SIGNING_* environment variables to use a signing key.')
+}
+def signingKeystore = hasCompleteSigningEnvironment ? rootProject.file(signingEnvironment.keystore) : null
+if (signingKeystore != null && !signingKeystore.isFile()) {
+    throw new GradleException('SIGNING_KEYSTORE_PATH must point to an existing keystore.')
+}
+
 android {
-    compileSdk 35
+    compileSdk 37
+    buildToolsVersion '37.0.0'
 
     defaultConfig {
         applicationId "com.github.curiousnom.kernelflasher"
@@ -15,14 +32,6 @@ android {
         versionCode 200
         versionName "2.0.0"
 
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments += [
-                    "room.schemaLocation": "$projectDir/schemas".toString(),
-                    "room.incremental": "true"
-                ]
-            }
-        }
         ndk {
             //noinspection ChromeOsAbiSupport
             abiFilters = ['armeabi-v7a', 'arm64-v8a']
@@ -32,23 +41,22 @@ android {
         }
     }
     signingConfigs {
-        release {
-            if (file("release.keystore").exists()) {
-                storeFile file("release.keystore")
-                storePassword "kernelflasher"
-                keyAlias "kernelflasher"
-                keyPassword "kernelflasher"
+        shared {
+            if (hasCompleteSigningEnvironment) {
+                storeFile signingKeystore
+                storePassword signingEnvironment.storePassword
+                keyAlias signingEnvironment.keyAlias
+                keyPassword signingEnvironment.keyPassword
             }
         }
     }
     buildTypes {
+        debug {
+            signingConfig hasCompleteSigningEnvironment ? signingConfigs.shared : signingConfigs.debug
+        }
         release {
             minifyEnabled false
-            if (file("release.keystore").exists()) {
-                signingConfig signingConfigs.release
-            } else {
-                signingConfig signingConfigs.debug
-            }
+            signingConfig hasCompleteSigningEnvironment ? signingConfigs.shared : signingConfigs.debug
         }
     }
     sourceSets {
@@ -58,19 +66,11 @@ android {
     }
     buildFeatures {
         aidl true
-    }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = '17'
-    }
-    buildFeatures {
         compose true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion libs.versions.compose.compiler.get()
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
     }
     packaging {
         resources {
@@ -83,34 +83,39 @@ android {
     namespace 'com.github.curiousnom.kernelflasher'
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+    }
+}
+
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
     arg("room.incremental", "true")
 }
 
 dependencies {
+    implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.compose.material)
-    // Replaced bloated material-icons-extended (~84MB / thousands of unused icons)
-    // with optimized AppIcons containing only the app's specific icons.
-    // implementation(libs.androidx.compose.material.icons.extended)
-    implementation(libs.androidx.compose.material3)
+    // AppIcons contains only the additional vectors used by Kernel Flasher.
+    implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.ui)
+    implementation(libs.miuix.ui)
+    implementation(libs.miuix.preference)
+    implementation(libs.miuix.nav)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.navigation.runtime)
     implementation(libs.androidx.room.runtime)
-    annotationProcessor(libs.androidx.room.compiler)
     ksp(libs.androidx.room.compiler)
     implementation(libs.libsu.core)
     implementation(libs.libsu.io)
     implementation(libs.libsu.nio)
     implementation(libs.libsu.service)
-    implementation(libs.material)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
 }

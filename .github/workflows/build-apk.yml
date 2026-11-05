@@ -1,0 +1,104 @@
+name: Build APKs
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Prepare signing key
+        env:
+          SIGNING_KEYSTORE_PATH: ${{ runner.temp }}/kernelflasher-signing.keystore
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for variable in SIGNING_KEYSTORE_BASE64 SIGNING_STORE_PASSWORD SIGNING_KEY_ALIAS SIGNING_KEY_PASSWORD; do
+            if [[ -z "${!variable}" ]]; then
+              printf 'Missing repository secret: %s\n' "$variable" >&2
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 --decode > "$SIGNING_KEYSTORE_PATH"
+          test -s "$SIGNING_KEYSTORE_PATH"
+
+      - name: Build Debug and Release
+        env:
+          SIGNING_KEYSTORE_PATH: ${{ runner.temp }}/kernelflasher-signing.keystore
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: bash ./gradlew --no-daemon :app:assembleDebug :app:assembleRelease
+
+      - name: Verify APK signatures
+        run: |
+          set -euo pipefail
+          apksigner="$ANDROID_HOME/build-tools/37.0.0/apksigner"
+          debug_apk="app/build/outputs/apk/debug/app-debug.apk"
+          release_apk="app/build/outputs/apk/release/app-release.apk"
+          "$apksigner" verify "$debug_apk"
+          "$apksigner" verify "$release_apk"
+          debug_certificate=$("$apksigner" verify --print-certs "$debug_apk" | sed -n 's/.*certificate SHA-256 digest: //p')
+          release_certificate=$("$apksigner" verify --print-certs "$release_apk" | sed -n 's/.*certificate SHA-256 digest: //p')
+          if [[ -z "$debug_certificate" || "$debug_certificate" != "$release_certificate" ]]; then
+            printf 'Debug and Release must use the same signing certificate.\n' >&2
+            exit 1
+          fi
+          mkdir -p dist
+          cp "$debug_apk" dist/KernelFlasher-miuix-debug.apk
+          cp "$release_apk" dist/KernelFlasher-miuix-release.apk
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: dist/KernelFlasher-miuix-debug.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: dist/KernelFlasher-miuix-release.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove signing key
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/kernelflasher-signing.keystore"

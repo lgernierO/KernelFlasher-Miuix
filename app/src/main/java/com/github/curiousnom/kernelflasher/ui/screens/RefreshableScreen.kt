@@ -1,73 +1,45 @@
 package com.github.curiousnom.kernelflasher.ui.screens
 
-import android.content.res.Configuration
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.displayCutout
-import androidx.compose.foundation.layout.displayCutoutPadding
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.github.curiousnom.kernelflasher.R
-import com.github.curiousnom.kernelflasher.ui.components.pressScale
 import com.github.curiousnom.kernelflasher.ui.screens.main.MainViewModel
 import kotlinx.serialization.ExperimentalSerializationApi
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.basic.PullToRefresh
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.basic.rememberPullToRefreshState
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
-@ExperimentalMaterialApi
-@ExperimentalMaterial3Api
 @ExperimentalSerializationApi
 @Composable
 fun RefreshableScreen(
@@ -75,113 +47,109 @@ fun RefreshableScreen(
     navController: NavController,
     swipeEnabled: Boolean = false,
     title: String? = null,
+    showBackButton: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val navigationBars = WindowInsets.navigationBars.asPaddingValues()
-    val displayCutout = WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal).asPaddingValues()
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val topPadding = if (isLandscape) 12.dp else 20.dp
-    val horizontalPadding = if (isLandscape) 16.dp else 20.dp
-    val topBarHeight = if (isLandscape) 56.dp else 60.dp
     val context = LocalContext.current
-    val state = rememberPullRefreshState(viewModel.isRefreshing, onRefresh = {
-        viewModel.refresh(context)
-    })
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface
+    val windowSize = LocalWindowInfo.current.containerSize
+    val compactHeight = with(LocalDensity.current) { windowSize.height.toDp() } < 480.dp
+    val scrollBehavior = MiuixScrollBehavior()
+    val scrollState = rememberScrollState()
+    val refreshState = rememberPullToRefreshState()
+    val pageTitle = title ?: stringResource(R.string.app_name)
+    val refreshTexts = listOf(
+        stringResource(R.string.pull_to_refresh),
+        stringResource(R.string.release_to_refresh),
+        stringResource(R.string.refreshing),
+        stringResource(R.string.refresh_complete)
+    )
+    val navigationIcon: @Composable () -> Unit = {
+        if (showBackButton) {
+            IconButton(
+                onClick = { navController.popBackStack() },
+                enabled = !viewModel.isRefreshing,
+                minWidth = 48.dp,
+                minHeight = 48.dp
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .displayCutoutPadding()
-                        .height(topBarHeight),
-                    contentAlignment = Alignment.Center
-                ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
+                    tint = if (viewModel.isRefreshing) {
+                        MiuixTheme.colorScheme.disabledOnSurface
+                    } else {
+                        MiuixTheme.colorScheme.onSurface
+                    },
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    }
+    Scaffold(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        topBar = {
+            val actions: @Composable RowScope.() -> Unit = {
+                if (viewModel.isRefreshing && !swipeEnabled) {
                     Box(
-                        modifier = Modifier
-                            .widthIn(max = 760.dp)
-                            .fillMaxWidth()
-                            .fillMaxHeight()
+                        modifier = Modifier.size(48.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        if (navController.previousBackStackEntry != null) {
-                            val backSource = remember { MutableInteractionSource() }
-                            AnimatedVisibility(
-                                visible = !viewModel.isRefreshing,
-                                enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.85f, animationSpec = tween(180)),
-                                exit = fadeOut(tween(140)) + scaleOut(targetScale = 0.85f, animationSpec = tween(140)),
-                                modifier = Modifier
-                                    .align(Alignment.CenterStart)
-                                    .padding(start = 16.dp)
-                            ) {
-                                FilledTonalIconButton(
-                                    onClick = { navController.popBackStack() },
-                                    interactionSource = backSource,
-                                    shape = CircleShape,
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        contentColor = MaterialTheme.colorScheme.onSurface
-                                    ),
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .pressScale(backSource, scaleDown = 0.90f)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                        contentDescription = stringResource(R.string.back),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                        Text(
-                            text = title ?: stringResource(R.string.app_name),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.align(Alignment.Center)
+                        InfiniteProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MiuixTheme.colorScheme.primary
                         )
                     }
                 }
             }
+            if (compactHeight) {
+                SmallTopAppBar(
+                    title = pageTitle,
+                    navigationIcon = navigationIcon,
+                    actions = actions,
+                    scrollBehavior = scrollBehavior
+                )
+            } else {
+                TopAppBar(
+                    title = pageTitle,
+                    navigationIcon = navigationIcon,
+                    actions = actions,
+                    scrollBehavior = scrollBehavior
+                )
+            }
         }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .padding(paddingValues)
-                .pullRefresh(state, swipeEnabled)
-                .fillMaxSize(),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            val layoutDirection = LocalLayoutDirection.current
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 760.dp)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(
-                        start = horizontalPadding + displayCutout.calculateStartPadding(layoutDirection),
-                        end = horizontalPadding + displayCutout.calculateEndPadding(layoutDirection),
-                        top = topPadding,
-                        bottom = (if (isLandscape) 16.dp else 24.dp) + navigationBars.calculateBottomPadding()
-                    ),
-                content = content
+    ) { innerPadding ->
+        val pageContent: @Composable () -> Unit = {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = 760.dp)
+                        .fillMaxWidth()
+                        // Every page uses this boundary feedback, with or without pull-to-refresh.
+                        .scrollEndHaptic()
+                        .nestedScroll(scrollBehavior.nestedScrollConnection)
+                        .verticalScroll(scrollState)
+                        .padding(innerPadding)
+                        .consumeWindowInsets(innerPadding)
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    content = content
+                )
+            }
+        }
+        if (swipeEnabled) {
+            PullToRefresh(
+                isRefreshing = viewModel.isRefreshing,
+                onRefresh = { if (!viewModel.isRefreshing) viewModel.refresh(context) },
+                modifier = Modifier.fillMaxSize(),
+                pullToRefreshState = refreshState,
+                contentPadding = innerPadding,
+                topAppBarScrollBehavior = scrollBehavior,
+                refreshTexts = refreshTexts,
+                content = pageContent
             )
-            PullRefreshIndicator(
-                refreshing = viewModel.isRefreshing,
-                state = state,
-                modifier = Modifier.align(Alignment.TopCenter),
-                backgroundColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentColor = MaterialTheme.colorScheme.primary,
-                scale = true
-            )
+        } else {
+            pageContent()
         }
     }
 }

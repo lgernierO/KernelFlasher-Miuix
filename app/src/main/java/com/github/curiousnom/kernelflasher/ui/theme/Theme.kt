@@ -1,50 +1,41 @@
 package com.github.curiousnom.kernelflasher.ui.theme
 
-import android.os.Build
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
-
-private val DarkColorScheme = darkColorScheme(
-    primary = GoogleBlueDark,
-    primaryContainer = GoogleBlueContainerDark,
-    surface = SurfaceDark,
-    surfaceContainerLow = SurfaceContainerLowDark,
-    surfaceContainer = SurfaceContainerDark,
-    surfaceContainerHigh = SurfaceContainerHighDark,
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = GoogleBlueLight,
-    primaryContainer = GoogleBlueContainerLight,
-    surface = SurfaceLight,
-    surfaceContainerLow = SurfaceContainerLowLight,
-    surfaceContainer = SurfaceContainerLight,
-    surfaceContainerHigh = SurfaceContainerHighLight,
-)
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
+import androidx.core.view.WindowInsetsControllerCompat
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.LocalContentColor
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
 
 @Composable
 fun KernelFlasherTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val activity = LocalActivity.current
+    val controller = remember(darkTheme, dynamicColor) {
+        ThemeController(
+            colorSchemeMode = if (dynamicColor) ColorSchemeMode.MonetSystem else ColorSchemeMode.System,
+            isDark = darkTheme
+        )
     }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    MiuixTheme(controller = controller) {
+        SideEffect {
+            activity?.window?.let { window ->
+                WindowInsetsControllerCompat(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
+            }
+        }
+        CompositionLocalProvider(LocalContentColor provides MiuixTheme.colorScheme.onBackground) {
+            content()
+        }
+    }
 }

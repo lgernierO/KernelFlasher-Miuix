@@ -139,7 +139,6 @@ class SlotViewModel(
         inInit = false
     }
 
-    // TODO: use base class for common functions
     private fun launch(block: suspend () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             _isRefreshing.value = true
@@ -157,7 +156,6 @@ class SlotViewModel(
         }
     }
 
-    // TODO: use base class for common functions
     @Suppress("SameParameterValue")
     private fun log(context: Context, message: String, shouldThrow: Boolean = false) {
         Log.d(TAG, message)
@@ -182,7 +180,6 @@ class SlotViewModel(
         }
     }
 
-    // TODO: use base class for common functions
     private fun addMessage(message: String) {
         viewModelScope.launch(Dispatchers.Main) {
             _flashOutput.add(message)
@@ -214,7 +211,6 @@ class SlotViewModel(
         }
     }
 
-    // TODO: use base class for common functions
     @SuppressLint("SdCardPath")
     fun saveLog(context: Context) {
         launch {

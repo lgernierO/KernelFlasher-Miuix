@@ -2,10 +2,7 @@
     <string name="app_name">Kernel Flasher</string>
     <string name="root_required">Root is required</string>
     <string name="root_service_disconnected">Root service disconnected</string>
-    <string name="device">Device</string>
-    <string name="model">Model</string>
     <string name="build_number">Build Number</string>
-    <string name="kernel_name" tools:keep="@string/kernel_name">Kernel Name</string>
     <string name="kernel_version">Kernel Version</string>
     <string name="slot_suffix">Slot Suffix</string>
     <string name="slot">Slot</string>
@@ -13,7 +10,6 @@
     <string name="slot_b">Slot B</string>
     <string name="boot_sha1" tools:ignore="Typos">Boot SHA1</string>
     <string name="vendor_dlkm">Vendor DLKM</string>
-    <string name="exists">Exists</string>
     <string name="not_found">Not Found</string>
     <string name="mounted">Mounted</string>
     <string name="unmounted">Unmounted</string>
@@ -52,9 +48,6 @@
     <string name="reboot_download">Reboot to Download</string>
     <string name="reboot_edl">Reboot to EDL</string>
     <string name="save_ak3_log">Save AK3 Log</string>
-    <string name="save_flash_log">Save Flash Log</string>
-    <string name="save_backup_log">Save Backup Log</string>
-    <string name="save_restore_log" tools:keep="@string/save_restore_log">Save Restore Log</string>
     <string name="save_ak3_zip_as_backup">Save AK3 Zip as Backup</string>
     <string name="backup_type">Backup Type</string>
     <string name="hashes">Hashes</string>
@@ -62,5 +55,25 @@
     <string name="active">Active</string>
     <string name="actions">Actions</string>
     <string name="diagnostics">Diagnostics</string>
+    <string name="android_version">Android version</string>
+    <string name="copy_value">Copy %1$s</string>
+    <string name="value_copied">%1$s copied</string>
+    <string name="expanded_value">Expanded</string>
+    <string name="collapsed_value">Collapsed</string>
+    <string name="no_updates_tracked">No update sources added</string>
+    <string name="updates_empty_summary">Add a kernel update source to track new releases.</string>
+    <string name="updates_source_hint">Enter the URL of the kernel update JSON.</string>
+    <string name="invalid_update_url">Enter a valid HTTP or HTTPS URL.</string>
+    <string name="pull_to_refresh">Pull to refresh</string>
+    <string name="release_to_refresh">Release to refresh</string>
+    <string name="refreshing">Refreshing…</string>
+    <string name="refresh_complete">Refresh complete</string>
+    <string name="flash_ak3_summary">Choose an AnyKernel3 ZIP to flash.</string>
+    <string name="flash_image_summary">Choose an image for a kernel partition.</string>
+    <string name="select_backup_partitions">Partitions to back up</string>
+    <string name="select_restore_partitions">Partitions to restore</string>
+    <string name="operation_running">Operation in progress</string>
+    <string name="operation_completed">Operation completed</string>
+    <string name="operation_failed">Operation failed</string>
     <!-- TODO: Make error and success messages string resources -->
 </resources>

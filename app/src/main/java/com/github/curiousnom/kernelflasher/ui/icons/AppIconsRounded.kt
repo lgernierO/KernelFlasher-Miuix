@@ -5,7 +5,6 @@ import androidx.compose.material.icons.materialIcon
 import androidx.compose.material.icons.materialPath
 import androidx.compose.ui.graphics.vector.ImageVector
 
-
 public val Icons.Rounded.Android: ImageVector
     get() {
         if (_android != null) {
@@ -45,50 +44,6 @@ public val Icons.Rounded.Android: ImageVector
     }
 
 private var _android: ImageVector? = null
-
-public val Icons.Rounded.Archive: ImageVector
-    get() {
-        if (_archive != null) {
-            return _archive!!
-        }
-        _archive = materialIcon(name = "Rounded.Archive") {
-            materialPath {
-                moveTo(20.54f, 5.23f)
-                lineToRelative(-1.39f, -1.68f)
-                curveTo(18.88f, 3.21f, 18.47f, 3.0f, 18.0f, 3.0f)
-                lineTo(6.0f, 3.0f)
-                curveToRelative(-0.47f, 0.0f, -0.88f, 0.21f, -1.16f, 0.55f)
-                lineTo(3.46f, 5.23f)
-                curveTo(3.17f, 5.57f, 3.0f, 6.02f, 3.0f, 6.5f)
-                lineTo(3.0f, 19.0f)
-                curveToRelative(0.0f, 1.1f, 0.9f, 2.0f, 2.0f, 2.0f)
-                horizontalLineToRelative(14.0f)
-                curveToRelative(1.1f, 0.0f, 2.0f, -0.9f, 2.0f, -2.0f)
-                lineTo(21.0f, 6.5f)
-                curveToRelative(0.0f, -0.48f, -0.17f, -0.93f, -0.46f, -1.27f)
-                close()
-                moveTo(11.65f, 17.15f)
-                lineTo(6.5f, 12.0f)
-                lineTo(10.0f, 12.0f)
-                verticalLineToRelative(-2.0f)
-                horizontalLineToRelative(4.0f)
-                verticalLineToRelative(2.0f)
-                horizontalLineToRelative(3.5f)
-                lineToRelative(-5.15f, 5.15f)
-                curveToRelative(-0.19f, 0.19f, -0.51f, 0.19f, -0.7f, 0.0f)
-                close()
-                moveTo(5.12f, 5.0f)
-                lineToRelative(0.81f, -1.0f)
-                horizontalLineToRelative(12.0f)
-                lineToRelative(0.94f, 1.0f)
-                lineTo(5.12f, 5.0f)
-                close()
-            }
-        }
-        return _archive!!
-    }
-
-private var _archive: ImageVector? = null
 
 public val Icons.Rounded.Backup: ImageVector
     get() {
@@ -157,84 +112,6 @@ public val Icons.Rounded.Bolt: ImageVector
     }
 
 private var _bolt: ImageVector? = null
-
-public val Icons.Rounded.BugReport: ImageVector
-    get() {
-        if (_bugReport != null) {
-            return _bugReport!!
-        }
-        _bugReport = materialIcon(name = "Rounded.BugReport") {
-            materialPath {
-                moveTo(19.0f, 8.0f)
-                horizontalLineToRelative(-1.81f)
-                curveToRelative(-0.45f, -0.78f, -1.07f, -1.45f, -1.82f, -1.96f)
-                lineToRelative(0.93f, -0.93f)
-                curveToRelative(0.39f, -0.39f, 0.39f, -1.02f, 0.0f, -1.41f)
-                curveToRelative(-0.39f, -0.39f, -1.02f, -0.39f, -1.41f, 0.0f)
-                lineToRelative(-1.47f, 1.47f)
-                curveTo(12.96f, 5.06f, 12.49f, 5.0f, 12.0f, 5.0f)
-                reflectiveCurveToRelative(-0.96f, 0.06f, -1.41f, 0.17f)
-                lineTo(9.11f, 3.7f)
-                curveToRelative(-0.39f, -0.39f, -1.02f, -0.39f, -1.41f, 0.0f)
-                curveToRelative(-0.39f, 0.39f, -0.39f, 1.02f, 0.0f, 1.41f)
-                lineToRelative(0.92f, 0.93f)
-                curveTo(7.88f, 6.55f, 7.26f, 7.22f, 6.81f, 8.0f)
-                lineTo(5.0f, 8.0f)
-                curveToRelative(-0.55f, 0.0f, -1.0f, 0.45f, -1.0f, 1.0f)
-                reflectiveCurveToRelative(0.45f, 1.0f, 1.0f, 1.0f)
-                horizontalLineToRelative(1.09f)
-                curveToRelative(-0.05f, 0.33f, -0.09f, 0.66f, -0.09f, 1.0f)
-                verticalLineToRelative(1.0f)
-                lineTo(5.0f, 12.0f)
-                curveToRelative(-0.55f, 0.0f, -1.0f, 0.45f, -1.0f, 1.0f)
-                reflectiveCurveToRelative(0.45f, 1.0f, 1.0f, 1.0f)
-                horizontalLineToRelative(1.0f)
-                verticalLineToRelative(1.0f)
-                curveToRelative(0.0f, 0.34f, 0.04f, 0.67f, 0.09f, 1.0f)
-                lineTo(5.0f, 16.0f)
-                curveToRelative(-0.55f, 0.0f, -1.0f, 0.45f, -1.0f, 1.0f)
-                reflectiveCurveToRelative(0.45f, 1.0f, 1.0f, 1.0f)
-                horizontalLineToRelative(1.81f)
-                curveToRelative(1.04f, 1.79f, 2.97f, 3.0f, 5.19f, 3.0f)
-                reflectiveCurveToRelative(4.15f, -1.21f, 5.19f, -3.0f)
-                lineTo(19.0f, 18.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, -0.45f, 1.0f, -1.0f)
-                reflectiveCurveToRelative(-0.45f, -1.0f, -1.0f, -1.0f)
-                horizontalLineToRelative(-1.09f)
-                curveToRelative(0.05f, -0.33f, 0.09f, -0.66f, 0.09f, -1.0f)
-                verticalLineToRelative(-1.0f)
-                horizontalLineToRelative(1.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, -0.45f, 1.0f, -1.0f)
-                reflectiveCurveToRelative(-0.45f, -1.0f, -1.0f, -1.0f)
-                horizontalLineToRelative(-1.0f)
-                verticalLineToRelative(-1.0f)
-                curveToRelative(0.0f, -0.34f, -0.04f, -0.67f, -0.09f, -1.0f)
-                lineTo(19.0f, 10.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, -0.45f, 1.0f, -1.0f)
-                reflectiveCurveToRelative(-0.45f, -1.0f, -1.0f, -1.0f)
-                close()
-                moveTo(13.0f, 16.0f)
-                horizontalLineToRelative(-2.0f)
-                curveToRelative(-0.55f, 0.0f, -1.0f, -0.45f, -1.0f, -1.0f)
-                reflectiveCurveToRelative(0.45f, -1.0f, 1.0f, -1.0f)
-                horizontalLineToRelative(2.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, 0.45f, 1.0f, 1.0f)
-                reflectiveCurveToRelative(-0.45f, 1.0f, -1.0f, 1.0f)
-                close()
-                moveTo(13.0f, 12.0f)
-                horizontalLineToRelative(-2.0f)
-                curveToRelative(-0.55f, 0.0f, -1.0f, -0.45f, -1.0f, -1.0f)
-                reflectiveCurveToRelative(0.45f, -1.0f, 1.0f, -1.0f)
-                horizontalLineToRelative(2.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, 0.45f, 1.0f, 1.0f)
-                reflectiveCurveToRelative(-0.45f, 1.0f, -1.0f, 1.0f)
-                close()
-            }
-        }
-        return _bugReport!!
-    }
-
-private var _bugReport: ImageVector? = null
 
 public val Icons.Rounded.Cached: ImageVector
     get() {
@@ -714,43 +591,6 @@ public val Icons.Rounded.FolderOff: ImageVector
 
 private var _folderOff: ImageVector? = null
 
-public val Icons.Rounded.FolderOpen: ImageVector
-    get() {
-        if (_folderOpen != null) {
-            return _folderOpen!!
-        }
-        _folderOpen = materialIcon(name = "Rounded.FolderOpen") {
-            materialPath {
-                moveTo(20.0f, 6.0f)
-                horizontalLineToRelative(-8.0f)
-                lineToRelative(-1.41f, -1.41f)
-                curveTo(10.21f, 4.21f, 9.7f, 4.0f, 9.17f, 4.0f)
-                lineTo(4.0f, 4.0f)
-                curveToRelative(-1.1f, 0.0f, -1.99f, 0.9f, -1.99f, 2.0f)
-                lineTo(2.0f, 18.0f)
-                curveToRelative(0.0f, 1.1f, 0.9f, 2.0f, 2.0f, 2.0f)
-                horizontalLineToRelative(16.0f)
-                curveToRelative(1.1f, 0.0f, 2.0f, -0.9f, 2.0f, -2.0f)
-                lineTo(22.0f, 8.0f)
-                curveToRelative(0.0f, -1.1f, -0.9f, -2.0f, -2.0f, -2.0f)
-                close()
-                moveTo(19.0f, 18.0f)
-                lineTo(5.0f, 18.0f)
-                curveToRelative(-0.55f, 0.0f, -1.0f, -0.45f, -1.0f, -1.0f)
-                lineTo(4.0f, 9.0f)
-                curveToRelative(0.0f, -0.55f, 0.45f, -1.0f, 1.0f, -1.0f)
-                horizontalLineToRelative(14.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, 0.45f, 1.0f, 1.0f)
-                verticalLineToRelative(8.0f)
-                curveToRelative(0.0f, 0.55f, -0.45f, 1.0f, -1.0f, 1.0f)
-                close()
-            }
-        }
-        return _folderOpen!!
-    }
-
-private var _folderOpen: ImageVector? = null
-
 public val Icons.Rounded.FolderZip: ImageVector
     get() {
         if (_folderZip != null) {
@@ -1136,46 +976,6 @@ public val Icons.Rounded.Restore: ImageVector
 
 private var _restore: ImageVector? = null
 
-public val Icons.Rounded.Save: ImageVector
-    get() {
-        if (_save != null) {
-            return _save!!
-        }
-        _save = materialIcon(name = "Rounded.Save") {
-            materialPath {
-                moveTo(17.59f, 3.59f)
-                curveToRelative(-0.38f, -0.38f, -0.89f, -0.59f, -1.42f, -0.59f)
-                lineTo(5.0f, 3.0f)
-                curveToRelative(-1.11f, 0.0f, -2.0f, 0.9f, -2.0f, 2.0f)
-                verticalLineToRelative(14.0f)
-                curveToRelative(0.0f, 1.1f, 0.9f, 2.0f, 2.0f, 2.0f)
-                horizontalLineToRelative(14.0f)
-                curveToRelative(1.1f, 0.0f, 2.0f, -0.9f, 2.0f, -2.0f)
-                lineTo(21.0f, 7.83f)
-                curveToRelative(0.0f, -0.53f, -0.21f, -1.04f, -0.59f, -1.41f)
-                lineToRelative(-2.82f, -2.83f)
-                close()
-                moveTo(12.0f, 19.0f)
-                curveToRelative(-1.66f, 0.0f, -3.0f, -1.34f, -3.0f, -3.0f)
-                reflectiveCurveToRelative(1.34f, -3.0f, 3.0f, -3.0f)
-                reflectiveCurveToRelative(3.0f, 1.34f, 3.0f, 3.0f)
-                reflectiveCurveToRelative(-1.34f, 3.0f, -3.0f, 3.0f)
-                close()
-                moveTo(13.0f, 9.0f)
-                lineTo(7.0f, 9.0f)
-                curveToRelative(-1.1f, 0.0f, -2.0f, -0.9f, -2.0f, -2.0f)
-                reflectiveCurveToRelative(0.9f, -2.0f, 2.0f, -2.0f)
-                horizontalLineToRelative(6.0f)
-                curveToRelative(1.1f, 0.0f, 2.0f, 0.9f, 2.0f, 2.0f)
-                reflectiveCurveToRelative(-0.9f, 2.0f, -2.0f, 2.0f)
-                close()
-            }
-        }
-        return _save!!
-    }
-
-private var _save: ImageVector? = null
-
 public val Icons.Rounded.SettingsBackupRestore: ImageVector
     get() {
         if (_settingsBackupRestore != null) {
@@ -1246,50 +1046,6 @@ public val Icons.Rounded.Smartphone: ImageVector
 
 private var _smartphone: ImageVector? = null
 
-public val Icons.Rounded.Sync: ImageVector
-    get() {
-        if (_sync != null) {
-            return _sync!!
-        }
-        _sync = materialIcon(name = "Rounded.Sync") {
-            materialPath {
-                moveTo(12.0f, 4.0f)
-                lineTo(12.0f, 2.21f)
-                curveToRelative(0.0f, -0.45f, -0.54f, -0.67f, -0.85f, -0.35f)
-                lineToRelative(-2.8f, 2.79f)
-                curveToRelative(-0.2f, 0.2f, -0.2f, 0.51f, 0.0f, 0.71f)
-                lineToRelative(2.79f, 2.79f)
-                curveToRelative(0.32f, 0.31f, 0.86f, 0.09f, 0.86f, -0.36f)
-                lineTo(12.0f, 6.0f)
-                curveToRelative(3.31f, 0.0f, 6.0f, 2.69f, 6.0f, 6.0f)
-                curveToRelative(0.0f, 0.79f, -0.15f, 1.56f, -0.44f, 2.25f)
-                curveToRelative(-0.15f, 0.36f, -0.04f, 0.77f, 0.23f, 1.04f)
-                curveToRelative(0.51f, 0.51f, 1.37f, 0.33f, 1.64f, -0.34f)
-                curveToRelative(0.37f, -0.91f, 0.57f, -1.91f, 0.57f, -2.95f)
-                curveToRelative(0.0f, -4.42f, -3.58f, -8.0f, -8.0f, -8.0f)
-                close()
-                moveTo(12.0f, 18.0f)
-                curveToRelative(-3.31f, 0.0f, -6.0f, -2.69f, -6.0f, -6.0f)
-                curveToRelative(0.0f, -0.79f, 0.15f, -1.56f, 0.44f, -2.25f)
-                curveToRelative(0.15f, -0.36f, 0.04f, -0.77f, -0.23f, -1.04f)
-                curveToRelative(-0.51f, -0.51f, -1.37f, -0.33f, -1.64f, 0.34f)
-                curveTo(4.2f, 9.96f, 4.0f, 10.96f, 4.0f, 12.0f)
-                curveToRelative(0.0f, 4.42f, 3.58f, 8.0f, 8.0f, 8.0f)
-                verticalLineToRelative(1.79f)
-                curveToRelative(0.0f, 0.45f, 0.54f, 0.67f, 0.85f, 0.35f)
-                lineToRelative(2.79f, -2.79f)
-                curveToRelative(0.2f, -0.2f, 0.2f, -0.51f, 0.0f, -0.71f)
-                lineToRelative(-2.79f, -2.79f)
-                curveToRelative(-0.31f, -0.31f, -0.85f, -0.09f, -0.85f, 0.36f)
-                lineTo(12.0f, 18.0f)
-                close()
-            }
-        }
-        return _sync!!
-    }
-
-private var _sync: ImageVector? = null
-
 public val Icons.Rounded.SystemUpdate: ImageVector
     get() {
         if (_systemUpdate != null) {
@@ -1332,123 +1088,3 @@ public val Icons.Rounded.SystemUpdate: ImageVector
     }
 
 private var _systemUpdate: ImageVector? = null
-
-public val Icons.Rounded.Tag: ImageVector
-    get() {
-        if (_tag != null) {
-            return _tag!!
-        }
-        _tag = materialIcon(name = "Rounded.Tag") {
-            materialPath {
-                moveTo(20.0f, 9.0f)
-                lineTo(20.0f, 9.0f)
-                curveToRelative(0.0f, -0.55f, -0.45f, -1.0f, -1.0f, -1.0f)
-                horizontalLineToRelative(-3.0f)
-                verticalLineTo(5.0f)
-                curveToRelative(0.0f, -0.55f, -0.45f, -1.0f, -1.0f, -1.0f)
-                horizontalLineToRelative(0.0f)
-                curveToRelative(-0.55f, 0.0f, -1.0f, 0.45f, -1.0f, 1.0f)
-                verticalLineToRelative(3.0f)
-                horizontalLineToRelative(-4.0f)
-                verticalLineTo(5.0f)
-                curveToRelative(0.0f, -0.55f, -0.45f, -1.0f, -1.0f, -1.0f)
-                horizontalLineToRelative(0.0f)
-                curveTo(8.45f, 4.0f, 8.0f, 4.45f, 8.0f, 5.0f)
-                verticalLineToRelative(3.0f)
-                horizontalLineTo(5.0f)
-                curveTo(4.45f, 8.0f, 4.0f, 8.45f, 4.0f, 9.0f)
-                verticalLineToRelative(0.0f)
-                curveToRelative(0.0f, 0.55f, 0.45f, 1.0f, 1.0f, 1.0f)
-                horizontalLineToRelative(3.0f)
-                verticalLineToRelative(4.0f)
-                horizontalLineTo(5.0f)
-                curveToRelative(-0.55f, 0.0f, -1.0f, 0.45f, -1.0f, 1.0f)
-                verticalLineToRelative(0.0f)
-                curveToRelative(0.0f, 0.55f, 0.45f, 1.0f, 1.0f, 1.0f)
-                horizontalLineToRelative(3.0f)
-                verticalLineToRelative(3.0f)
-                curveToRelative(0.0f, 0.55f, 0.45f, 1.0f, 1.0f, 1.0f)
-                horizontalLineToRelative(0.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, -0.45f, 1.0f, -1.0f)
-                verticalLineToRelative(-3.0f)
-                horizontalLineToRelative(4.0f)
-                verticalLineToRelative(3.0f)
-                curveToRelative(0.0f, 0.55f, 0.45f, 1.0f, 1.0f, 1.0f)
-                horizontalLineToRelative(0.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, -0.45f, 1.0f, -1.0f)
-                verticalLineToRelative(-3.0f)
-                horizontalLineToRelative(3.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, -0.45f, 1.0f, -1.0f)
-                verticalLineToRelative(0.0f)
-                curveToRelative(0.0f, -0.55f, -0.45f, -1.0f, -1.0f, -1.0f)
-                horizontalLineToRelative(-3.0f)
-                verticalLineToRelative(-4.0f)
-                horizontalLineToRelative(3.0f)
-                curveTo(19.55f, 10.0f, 20.0f, 9.55f, 20.0f, 9.0f)
-                close()
-                moveTo(14.0f, 14.0f)
-                horizontalLineToRelative(-4.0f)
-                verticalLineToRelative(-4.0f)
-                horizontalLineToRelative(4.0f)
-                verticalLineTo(14.0f)
-                close()
-            }
-        }
-        return _tag!!
-    }
-
-private var _tag: ImageVector? = null
-
-public val Icons.Rounded.Widgets: ImageVector
-    get() {
-        if (_widgets != null) {
-            return _widgets!!
-        }
-        _widgets = materialIcon(name = "Rounded.Widgets") {
-            materialPath {
-                moveTo(13.0f, 14.0f)
-                verticalLineToRelative(6.0f)
-                curveToRelative(0.0f, 0.55f, 0.45f, 1.0f, 1.0f, 1.0f)
-                horizontalLineToRelative(6.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, -0.45f, 1.0f, -1.0f)
-                verticalLineToRelative(-6.0f)
-                curveToRelative(0.0f, -0.55f, -0.45f, -1.0f, -1.0f, -1.0f)
-                horizontalLineToRelative(-6.0f)
-                curveToRelative(-0.55f, 0.0f, -1.0f, 0.45f, -1.0f, 1.0f)
-                close()
-                moveTo(4.0f, 21.0f)
-                horizontalLineToRelative(6.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, -0.45f, 1.0f, -1.0f)
-                verticalLineToRelative(-6.0f)
-                curveToRelative(0.0f, -0.55f, -0.45f, -1.0f, -1.0f, -1.0f)
-                lineTo(4.0f, 13.0f)
-                curveToRelative(-0.55f, 0.0f, -1.0f, 0.45f, -1.0f, 1.0f)
-                verticalLineToRelative(6.0f)
-                curveToRelative(0.0f, 0.55f, 0.45f, 1.0f, 1.0f, 1.0f)
-                close()
-                moveTo(3.0f, 4.0f)
-                verticalLineToRelative(6.0f)
-                curveToRelative(0.0f, 0.55f, 0.45f, 1.0f, 1.0f, 1.0f)
-                horizontalLineToRelative(6.0f)
-                curveToRelative(0.55f, 0.0f, 1.0f, -0.45f, 1.0f, -1.0f)
-                lineTo(11.0f, 4.0f)
-                curveToRelative(0.0f, -0.55f, -0.45f, -1.0f, -1.0f, -1.0f)
-                lineTo(4.0f, 3.0f)
-                curveToRelative(-0.55f, 0.0f, -1.0f, 0.45f, -1.0f, 1.0f)
-                close()
-                moveTo(15.95f, 2.4f)
-                lineTo(11.7f, 6.64f)
-                curveToRelative(-0.39f, 0.39f, -0.39f, 1.02f, 0.0f, 1.41f)
-                lineToRelative(4.25f, 4.25f)
-                curveToRelative(0.39f, 0.39f, 1.02f, 0.39f, 1.41f, 0.0f)
-                lineToRelative(4.25f, -4.25f)
-                curveToRelative(0.39f, -0.39f, 0.39f, -1.02f, 0.0f, -1.41f)
-                lineTo(17.37f, 2.4f)
-                curveToRelative(-0.39f, -0.39f, -1.03f, -0.39f, -1.42f, 0.0f)
-                close()
-            }
-        }
-        return _widgets!!
-    }
-
-private var _widgets: ImageVector? = null

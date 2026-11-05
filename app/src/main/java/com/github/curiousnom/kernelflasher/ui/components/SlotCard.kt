@@ -1,52 +1,29 @@
 package com.github.curiousnom.kernelflasher.ui.components
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.res.Configuration
-import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.Memory
-import androidx.compose.material.icons.rounded.Tag
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.github.curiousnom.kernelflasher.R
 import com.github.curiousnom.kernelflasher.ui.screens.slot.SlotViewModel
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@ExperimentalMaterial3Api
 @Composable
 fun SlotCard(
     title: String,
@@ -55,200 +32,73 @@ fun SlotCard(
     isSlotScreen: Boolean = false,
     showDlkm: Boolean = true,
 ) {
-    val context = LocalContext.current
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val dividerSpacing = if (isLandscape) 8.dp else 12.dp
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        backgroundColor = MaterialTheme.colorScheme.surfaceContainer
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Header: Icon, Slot Title, Active Badge, View Button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = if (viewModel.isActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.size(34.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.Layers,
-                                contentDescription = null,
-                                tint = if (viewModel.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (viewModel.isActive) {
-                        Spacer(Modifier.width(8.dp))
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.CheckCircle,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(11.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(Modifier.width(3.dp))
-                                Text(
-                                    text = stringResource(R.string.active),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (!isSlotScreen && !viewModel.hasError) {
-                    AnimatedVisibility(!viewModel.isRefreshing) {
-                        ViewButton {
-                            navController.navigate("slot${viewModel.slotSuffix}")
-                        }
-                    }
-                }
-            }
-
-            if (!viewModel.hasError) {
-                Spacer(Modifier.height(dividerSpacing))
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                    modifier = Modifier.fillMaxWidth()
+    Card(Modifier.fillMaxWidth()) {
+        BasicComponent(
+            title = title,
+            summary = if (viewModel.isActive) stringResource(R.string.active) else null,
+            summaryColor = BasicComponentDefaults.summaryColor(
+                color = MiuixTheme.colorScheme.primary,
+            ),
+            startAction = {
+                Icon(
+                    imageVector = Icons.Rounded.Layers,
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainer,
+                    modifier = Modifier.size(24.dp),
                 )
-                Spacer(Modifier.height(dividerSpacing))
-
-                // SHA1 & DLKM row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // SHA1
-                    Row(
-                        modifier = Modifier
-                            .clickable {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("Boot SHA1", viewModel.sha1))
-                                Toast.makeText(context, "Copied SHA1: ${viewModel.sha1.take(8)}", Toast.LENGTH_SHORT).show()
-                            },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Tag,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = stringResource(R.string.boot_sha1) + ": ",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = viewModel.sha1.take(8),
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = "Copy SHA1",
-                            modifier = Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                    }
-
-                    // DLKM status
-                    if (showDlkm && viewModel.hasVendorDlkm) {
-                        val isMounted = viewModel.isVendorDlkmMounted
-                        val isMapped = viewModel.isVendorDlkmMapped
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Rounded.Memory,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = if (isMounted) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = stringResource(R.string.vendor_dlkm) + ": ",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = if (isMapped) {
-                                    if (isMounted) stringResource(R.string.mounted) else stringResource(R.string.unmounted)
-                                } else {
-                                    stringResource(R.string.not_found)
-                                },
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = if (isMounted) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
+            },
+            endActions = if (!isSlotScreen && !viewModel.hasError && !viewModel.isRefreshing) {
+                {
+                    CompactActionButton(
+                        text = stringResource(R.string.view),
+                        enabled = !viewModel.isRefreshing,
+                        onClick = { navController.navigate("slot${viewModel.slotSuffix}") },
+                    )
                 }
-
+            } else null,
+        )
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+            if (!viewModel.hasError) {
+                val hashLabel = stringResource(R.string.boot_sha1)
+                BasicComponent(
+                    insideMargin = PaddingValues(0.dp),
+                    endActions = { CopyButton(value = viewModel.sha1, label = hashLabel) },
+                ) {
+                    Text(
+                        text = hashLabel,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                    Text(
+                        text = viewModel.sha1,
+                        style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                        color = MiuixTheme.colorScheme.onSurfaceContainer,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                if (showDlkm && viewModel.hasVendorDlkm) {
+                    Spacer(Modifier.height(8.dp))
+                    DataRow(
+                        label = stringResource(R.string.vendor_dlkm),
+                        value = stringResource(
+                            if (!viewModel.isVendorDlkmMapped) R.string.not_found
+                            else if (viewModel.isVendorDlkmMounted) R.string.mounted
+                            else R.string.unmounted
+                        ),
+                    )
+                }
                 if (isSlotScreen && viewModel.kernelVersion != null) {
-                    Spacer(Modifier.height(if (isLandscape) 6.dp else 10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.kernel_version) + ": ",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = viewModel.kernelVersion ?: "",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    DataRow(
+                        label = stringResource(R.string.kernel_version),
+                        value = viewModel.kernelVersion.orEmpty(),
+                        clickable = true,
+                    )
                 }
             } else {
-                Spacer(Modifier.height(8.dp))
                 Text(
                     text = viewModel.error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
+                    color = MiuixTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.body2,
                 )
             }
         }
