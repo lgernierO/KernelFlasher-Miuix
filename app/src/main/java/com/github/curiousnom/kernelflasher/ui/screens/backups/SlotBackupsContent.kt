@@ -134,7 +134,9 @@ fun ColumnScope.SlotBackupsContent(
             val hasValidSelection = hashes == null ||
                 (PartitionUtil.PartitionNames.none {
                     hashes.get(it) != null && backupsViewModel.backupPartitions[it] == null
-                } && backupsViewModel.backupPartitions.any { it.value })
+                } && PartitionUtil.PartitionNames.any {
+                    hashes.get(it) != null && backupsViewModel.backupPartitions[it] == true
+                })
             TextButton(
                 text = stringResource(R.string.restore),
                 onClick = {

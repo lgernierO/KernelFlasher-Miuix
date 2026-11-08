@@ -47,6 +47,7 @@ class BackupsViewModel(
     var currentBackup: String? = null
         set(value) {
             if (value != field) {
+                _backupPartitions.clear()
                 if (_backups[value]?.hashes != null) {
                     PartitionUtil.AvailablePartitions.forEach { partitionName ->
                         if (_backups[value]!!.hashes!!.get(partitionName) != null) {

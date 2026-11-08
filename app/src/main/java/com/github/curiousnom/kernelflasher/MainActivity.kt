@@ -15,9 +15,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.res.stringResource
 import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -203,12 +205,14 @@ class MainActivity : ComponentActivity() {
                     val slotContent: @Composable (NavBackStackEntry) -> Unit = { backStackEntry ->
                         val slotSuffix = backStackEntry.arguments?.getString("slotSuffix") ?: ""
                         val slotViewModel = if (slotSuffix == "_b") slotViewModelB else slotViewModelA
-                        if (slotViewModel!!.wasFlashSuccess != null && isCurrentEntry(navController, backStackEntry)) {
-                            slotViewModel.clearFlash(this@MainActivity)
+                        OnCurrentEntry(navController, backStackEntry) {
+                            if (slotViewModel!!.wasFlashSuccess != null) {
+                                slotViewModel.clearFlash(this@MainActivity)
+                            }
                         }
                         val title = stringResource(if (slotSuffix == "_a") R.string.slot_a else if (slotSuffix == "_b") R.string.slot_b else R.string.slot)
                         RefreshableScreen(mainViewModel, navController, swipeEnabled = true, title = title) {
-                            SlotContent(slotViewModel, slotSuffix, navController)
+                            SlotContent(slotViewModel!!, slotSuffix, navController)
                         }
 
                     }
@@ -228,7 +232,7 @@ class MainActivity : ComponentActivity() {
                         val slotSuffix = backStackEntry.arguments?.getString("slotSuffix") ?: ""
                         val slotViewModel = if (slotSuffix == "_b") slotViewModelB else slotViewModelA
                         val backupId = backStackEntry.arguments?.getString("backupId")
-                        if (isCurrentEntry(navController, backStackEntry)) {
+                        OnCurrentEntry(navController, backStackEntry) {
                             if (backupId != null) {
                                 backupsViewModel.currentBackup = backupId
                             } else {
@@ -250,7 +254,7 @@ class MainActivity : ComponentActivity() {
                         val slotSuffix = backStackEntry.arguments?.getString("slotSuffix") ?: ""
                         val slotViewModel = if (slotSuffix == "_b") slotViewModelB else slotViewModelA
                         val backupId = backStackEntry.arguments?.getString("backupId")
-                        if (isCurrentEntry(navController, backStackEntry)) {
+                        OnCurrentEntry(navController, backStackEntry) {
                             backupsViewModel.currentBackup = backupId
                         }
                         if (backupsViewModel.backups.containsKey(backupId)) {
@@ -309,7 +313,7 @@ class MainActivity : ComponentActivity() {
                             miuixPage("slot/backups/{backupId}/flash/ak3", content = slotBackupFlashContent)
                         }
                         miuixPage("backups") { backStackEntry ->
-                            if (isCurrentEntry(navController, backStackEntry)) {
+                            OnCurrentEntry(navController, backStackEntry) {
                                 backupsViewModel.clearCurrent()
                             }
                             RefreshableScreen(mainViewModel, navController, title = stringResource(R.string.backups)) {
@@ -318,7 +322,7 @@ class MainActivity : ComponentActivity() {
                         }
                         miuixPage("backups/{backupId}") { backStackEntry ->
                             val backupId = backStackEntry.arguments?.getString("backupId")
-                            if (isCurrentEntry(navController, backStackEntry)) {
+                            OnCurrentEntry(navController, backStackEntry) {
                                 backupsViewModel.currentBackup = backupId
                             }
                             if (backupsViewModel.backups.containsKey(backupId)) {
@@ -328,7 +332,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         miuixPage("updates") { backStackEntry ->
-                            if (isCurrentEntry(navController, backStackEntry)) {
+                            OnCurrentEntry(navController, backStackEntry) {
                                 updatesViewModel.clearCurrent()
                             }
                             RefreshableScreen(mainViewModel, navController, title = stringResource(R.string.updates)) {
@@ -343,7 +347,7 @@ class MainActivity : ComponentActivity() {
                         miuixPage("updates/view/{updateId}") { backStackEntry ->
                             val updateId = backStackEntry.arguments?.getString("updateId")!!.toInt()
                             val currentUpdate = updatesViewModel.updates.firstOrNull { it.id == updateId }
-                            if (isCurrentEntry(navController, backStackEntry)) {
+                            OnCurrentEntry(navController, backStackEntry, currentUpdate) {
                                 updatesViewModel.currentUpdate = currentUpdate
                             }
                             if (currentUpdate != null) {
@@ -355,7 +359,7 @@ class MainActivity : ComponentActivity() {
                         miuixPage("updates/view/{updateId}/changelog") { backStackEntry ->
                             val updateId = backStackEntry.arguments?.getString("updateId")!!.toInt()
                             val currentUpdate = updatesViewModel.updates.firstOrNull { it.id == updateId }
-                            if (isCurrentEntry(navController, backStackEntry)) {
+                            OnCurrentEntry(navController, backStackEntry, currentUpdate) {
                                 updatesViewModel.currentUpdate = currentUpdate
                             }
                             val changelog = remember(backStackEntry.id) {
@@ -387,7 +391,7 @@ class MainActivity : ComponentActivity() {
     public override fun onResume() {
         super.onResume()
         if (this::mainListener.isInitialized) {
-            if (!isAwaitingResult) {
+            if (!isAwaitingResult && viewModel?.isRefreshing == false) {
                 mainListener.resume()
             }
         }
@@ -395,10 +399,19 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun isCurrentEntry(navController: NavController, entry: NavBackStackEntry): Boolean {
+private fun OnCurrentEntry(
+    navController: NavController,
+    entry: NavBackStackEntry,
+    stateKey: Any? = null,
+    onEnter: () -> Unit,
+) {
     val currentEntry by navController.currentBackStackEntryFlow.collectAsState(
         initial = navController.currentBackStackEntry
     )
-    // Covered and predictive-back preview entries must not reset the active operation's state.
-    return currentEntry?.id == entry.id && navController.currentBackStackEntry?.id == entry.id
+    val currentOnEnter by rememberUpdatedState(onEnter)
+    LaunchedEffect(entry.id, currentEntry?.id, stateKey) {
+        if (currentEntry?.id == entry.id && navController.currentBackStackEntry?.id == entry.id) {
+            currentOnEnter()
+        }
+    }
 }

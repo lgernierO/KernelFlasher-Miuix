@@ -3,12 +3,10 @@ package com.github.curiousnom.kernelflasher.ui.theme
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.core.view.WindowInsetsControllerCompat
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
-import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
 
@@ -34,8 +32,6 @@ fun KernelFlasherTheme(
                 }
             }
         }
-        CompositionLocalProvider(LocalContentColor provides MiuixTheme.colorScheme.onBackground) {
-            content()
-        }
+        content()
     }
 }

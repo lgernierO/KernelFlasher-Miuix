@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -98,6 +100,7 @@ fun MiuixNavHost(
     builder: NavGraphBuilder.() -> Unit,
 ) {
     val viewModelOwner = checkNotNull(LocalViewModelStoreOwner.current)
+    val busy by rememberUpdatedState(isBusy)
     val graph = remember(navController, startDestination) {
         navController.createGraph(startDestination = startDestination, builder = builder)
     }
@@ -134,7 +137,7 @@ fun MiuixNavHost(
                 cornerClipRadius = rememberNavSystemCornerRadius(),
                 blockInputDuringTransition = true,
             ),
-            onBack = { navController.popBackStack() },
+            onBack = { if (!busy) navController.popBackStack() },
         ) {
             entry<PageKey>(
                 contentKey = { it.entry.id },

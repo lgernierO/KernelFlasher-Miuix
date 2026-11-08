@@ -52,13 +52,17 @@ fun ColumnScope.FlashList(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val listState = rememberLazyListState()
-    var hasDragged by remember { mutableStateOf(false) }
+    var isFollowingOutput by remember { mutableStateOf(true) }
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
-    LaunchedEffect(isDragged) {
-        if (isDragged) hasDragged = true
+    LaunchedEffect(isDragged, listState.isScrollInProgress, listState.canScrollForward) {
+        if (isDragged) {
+            isFollowingOutput = false
+        } else if (!listState.isScrollInProgress && !listState.canScrollForward) {
+            isFollowingOutput = true
+        }
     }
-    LaunchedEffect(output.size, hasDragged) {
-        if (output.isNotEmpty() && !hasDragged) {
+    LaunchedEffect(output.size) {
+        if (output.isNotEmpty() && isFollowingOutput && !isDragged) {
             listState.scrollToItem(output.lastIndex)
         }
     }

@@ -51,6 +51,27 @@ fun RefreshableScreen(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val context = LocalContext.current
+    MiuixScreen(
+        isRefreshing = viewModel.isRefreshing,
+        onRefresh = { viewModel.refresh(context) },
+        onBack = { navController.popBackStack() },
+        swipeEnabled = swipeEnabled,
+        title = title,
+        showBackButton = showBackButton,
+        content = content,
+    )
+}
+
+@Composable
+fun MiuixScreen(
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    onBack: () -> Unit,
+    swipeEnabled: Boolean = false,
+    title: String? = null,
+    showBackButton: Boolean = true,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     val windowSize = LocalWindowInfo.current.containerSize
     val compactHeight = with(LocalDensity.current) { windowSize.height.toDp() } < 480.dp
     val scrollBehavior = MiuixScrollBehavior()
@@ -66,15 +87,15 @@ fun RefreshableScreen(
     val navigationIcon: @Composable () -> Unit = {
         if (showBackButton) {
             IconButton(
-                onClick = { navController.popBackStack() },
-                enabled = !viewModel.isRefreshing,
+                onClick = { if (!isRefreshing) onBack() },
+                enabled = !isRefreshing,
                 minWidth = 48.dp,
                 minHeight = 48.dp
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = stringResource(R.string.back),
-                    tint = if (viewModel.isRefreshing) {
+                    tint = if (isRefreshing) {
                         MiuixTheme.colorScheme.disabledOnSurface
                     } else {
                         MiuixTheme.colorScheme.onSurface
@@ -88,7 +109,7 @@ fun RefreshableScreen(
         modifier = Modifier.fillMaxSize().imePadding(),
         topBar = {
             val actions: @Composable RowScope.() -> Unit = {
-                if (viewModel.isRefreshing && !swipeEnabled) {
+                if (isRefreshing && !swipeEnabled) {
                     Box(
                         modifier = Modifier.size(48.dp),
                         contentAlignment = Alignment.Center
@@ -126,9 +147,11 @@ fun RefreshableScreen(
                     modifier = Modifier
                         .widthIn(max = 760.dp)
                         .fillMaxWidth()
-                        // Every page uses this boundary feedback, with or without pull-to-refresh.
                         .scrollEndHaptic()
-                        .nestedScroll(scrollBehavior.nestedScrollConnection)
+                        .then(
+                            if (swipeEnabled) Modifier
+                            else Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
+                        )
                         .verticalScroll(scrollState)
                         .padding(innerPadding)
                         .consumeWindowInsets(innerPadding)
@@ -139,8 +162,8 @@ fun RefreshableScreen(
         }
         if (swipeEnabled) {
             PullToRefresh(
-                isRefreshing = viewModel.isRefreshing,
-                onRefresh = { if (!viewModel.isRefreshing) viewModel.refresh(context) },
+                isRefreshing = isRefreshing,
+                onRefresh = { if (!isRefreshing) onRefresh() },
                 modifier = Modifier.fillMaxSize(),
                 pullToRefreshState = refreshState,
                 contentPadding = innerPadding,
