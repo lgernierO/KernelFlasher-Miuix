@@ -76,4 +76,5 @@
     <string name="operation_completed">Operation completed</string>
     <string name="operation_failed">Operation failed</string>
     <!-- TODO: Make error and success messages string resources -->
+    <string name="unmount_vendor_dlkm_confirm">Tap again to confirm unmounting Vendor DLKM.</string>
 </resources>

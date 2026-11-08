@@ -8,6 +8,7 @@ import com.topjohnwu.superuser.nio.ExtendedFile
 import com.topjohnwu.superuser.nio.FileSystemManager
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.IOException
 import java.security.DigestOutputStream
 import java.security.MessageDigest
 
@@ -32,6 +33,7 @@ object PartitionUtil {
 
     fun init(context: Context, fileSystemManager: FileSystemManager, slotSuffix: String? = null) {
         this.fileSystemManager = fileSystemManager
+        bootParent = null
         AvailablePartitions.clear()
         fstabCache.clear()
         val fstabEntry = findPartitionFstabEntry(context, "boot")
@@ -110,20 +112,49 @@ object PartitionUtil {
         return if (result.isNotEmpty()) result[0] else ""
     }
 
-    fun flashBlockDevice(image: ExtendedFile, blockDevice: ExtendedFile, hashAlgorithm: String): String {
-        val partitionSize = Shell.cmd("wc -c < $blockDevice").exec().out.firstOrNull()?.trim()?.toULongOrNull() ?: 0UL
-        val imageSize = Shell.cmd("wc -c < $image").exec().out.firstOrNull()?.trim()?.toULongOrNull() ?: 0UL
-        if (partitionSize < imageSize) {
-            throw Error("Partition ${blockDevice.name} is smaller than image")
+    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
+
+    private fun fileSize(file: ExtendedFile): ULong {
+        val result = Shell.cmd("wc -c < ${shellQuote(file.path)}").exec()
+        val size = result.out.firstOrNull()?.trim()?.toULongOrNull()
+        if (!result.isSuccess || size == null || size == 0UL) {
+            throw IOException("Failed to read a positive size for ${file.name}")
         }
-        if (partitionSize > imageSize) {
-            Shell.cmd("dd bs=4096 if=/dev/zero of=$blockDevice").exec()
+        return size
+    }
+
+    fun flashBlockDevice(image: ExtendedFile, blockDevice: ExtendedFile, hashAlgorithm: String): String {
+        val partitionSize = fileSize(blockDevice)
+        val imageSize = fileSize(image)
+        if (partitionSize < imageSize) {
+            throw IOException("Partition ${blockDevice.name} is smaller than image")
         }
         val messageDigest = MessageDigest.getInstance(hashAlgorithm)
         image.newInputStream().use { inputStream ->
+            if (partitionSize > imageSize) {
+                val blocks = partitionSize / 4096UL
+                val remaining = partitionSize % 4096UL
+                val target = shellQuote(blockDevice.path)
+                if (blocks > 0UL && !Shell.cmd("dd bs=4096 count=$blocks if=/dev/zero of=$target conv=notrunc").exec().isSuccess) {
+                    throw IOException("Failed to clear ${blockDevice.name}")
+                }
+                if (remaining > 0UL && !Shell.cmd("dd bs=1 seek=${blocks * 4096UL} count=$remaining if=/dev/zero of=$target conv=notrunc").exec().isSuccess) {
+                    throw IOException("Failed to clear ${blockDevice.name}")
+                }
+            }
             blockDevice.newOutputStream().use { outputStream ->
                 DigestOutputStream(outputStream, messageDigest).use { digestOutputStream ->
-                    inputStream.copyTo(digestOutputStream)
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var remainingBytes = imageSize
+                    while (remainingBytes > 0UL) {
+                        val count = inputStream.read(buffer, 0, minOf(buffer.size.toULong(), remainingBytes).toInt())
+                        if (count < 0) throw IOException("Image ${image.name} changed while flashing")
+                        digestOutputStream.write(buffer, 0, count)
+                        remainingBytes -= count.toULong()
+                    }
+                    if (inputStream.read() != -1) {
+                        throw IOException("Image ${image.name} changed while flashing")
+                    }
                 }
             }
         }
@@ -132,7 +163,8 @@ object PartitionUtil {
 
     @Suppress("SameParameterValue")
     fun flashLogicalPartition(context: Context, image: ExtendedFile, blockDevice: ExtendedFile, partitionName: String, slotSuffix: String, hashAlgorithm: String, addMessage: (message: String) -> Unit): String {
-        val sourceFileSize = Shell.cmd("wc -c < $image").exec().out.firstOrNull()?.trim()?.toULongOrNull() ?: 0UL
+        val sourceFileSize = fileSize(image)
+        MessageDigest.getInstance(hashAlgorithm)
         val lptools = File(context.filesDir, "lptools_static")
         Shell.cmd("$lptools remove ${partitionName}_kf").exec()
         if (Shell.cmd("$lptools create ${partitionName}_kf $sourceFileSize").exec().isSuccess) {
@@ -143,13 +175,13 @@ object PartitionUtil {
                     if (Shell.cmd("$lptools replace ${partitionName}_kf $partitionName$slotSuffix").exec().isSuccess) {
                         return hash
                     } else {
-                        throw Error("Replacing $partitionName$slotSuffix failed")
+                        throw IOException("Replacing $partitionName$slotSuffix failed")
                     }
                 } else {
-                    throw Error("Remapping ${partitionName}_kf failed")
+                    throw IOException("Remapping ${partitionName}_kf failed")
                 }
             } else {
-                throw Error("Unmapping ${partitionName}_kf failed")
+                throw IOException("Unmapping ${partitionName}_kf failed")
             }
         } else {
             addMessage.invoke("Creating ${partitionName}_kf failed. Attempting to resize $partitionName$slotSuffix ...")
@@ -158,29 +190,29 @@ object PartitionUtil {
                 val verityBlockDevice = blockDevice.parentFile!!.getChildFile("${partitionName}-verity")
                 if (verityBlockDevice.exists()) {
                     if (!Shell.cmd("$lptools unmap ${partitionName}-verity").exec().isSuccess) {
-                        throw Error("Unmapping ${partitionName}-verity failed")
+                        throw IOException("Unmapping ${partitionName}-verity failed")
                     }
                 }
                 if (Shell.cmd("$lptools unmap $partitionName$slotSuffix").exec().isSuccess) {
-                    if (Shell.cmd("$lptools resize $partitionName$slotSuffix \$(wc -c < $image)").exec().isSuccess) {
+                    if (Shell.cmd("$lptools resize $partitionName$slotSuffix $sourceFileSize").exec().isSuccess) {
                         if (Shell.cmd("$lptools map $partitionName$slotSuffix").exec().isSuccess) {
                             val hash = flashBlockDevice(image, blockDevice, hashAlgorithm)
                             if (Shell.cmd("$httools mount $partitionName").exec().isSuccess) {
                                 return hash
                             } else {
-                                throw Error("Mounting $partitionName failed")
+                                throw IOException("Mounting $partitionName failed")
                             }
                         } else {
-                            throw Error("Remapping $partitionName$slotSuffix failed")
+                            throw IOException("Remapping $partitionName$slotSuffix failed")
                         }
                     } else {
-                        throw Error("Resizing $partitionName$slotSuffix failed")
+                        throw IOException("Resizing $partitionName$slotSuffix failed")
                     }
                 } else {
-                    throw Error("Unmapping $partitionName$slotSuffix failed")
+                    throw IOException("Unmapping $partitionName$slotSuffix failed")
                 }
             } else {
-                throw Error("Unmounting $partitionName failed")
+                throw IOException("Unmounting $partitionName failed")
             }
         }
     }

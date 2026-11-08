@@ -2,6 +2,7 @@ package com.github.curiousnom.kernelflasher.ui.screens.main
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.runtime.MutableState
@@ -17,7 +18,10 @@ import com.github.curiousnom.kernelflasher.ui.screens.slot.SlotViewModel
 import com.github.curiousnom.kernelflasher.ui.screens.updates.UpdatesViewModel
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.nio.FileSystemManager
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -62,7 +66,6 @@ class MainViewModel(
         slotSuffix = sysProps.getOrNull(1) ?: ""
         PartitionUtil.init(context, fileSystemManager, slotSuffix)
         backups = BackupsViewModel(context, fileSystemManager, navController, _isRefreshing, _backups)
-        updates = UpdatesViewModel(context, fileSystemManager, navController, _isRefreshing)
         reboot = RebootViewModel(context, fileSystemManager, navController, _isRefreshing)
         // https://cs.android.com/android/platform/superproject/+/android-14.0.0_r18:bootable/recovery/recovery.cpp;l=320
         isAb = slotSuffix.isNotEmpty()
@@ -91,6 +94,7 @@ class MainViewModel(
 
         hasRamoops = fileSystemManager.getFile("/sys/fs/pstore/console-ramoops-0").exists()
         _isRefreshing.value = false
+        updates = UpdatesViewModel(context, fileSystemManager, navController, _isRefreshing)
     }
 
     fun refresh(context: Context) {
@@ -103,22 +107,22 @@ class MainViewModel(
         }
     }
 
-    private fun launch(block: suspend () -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            viewModelScope.launch(Dispatchers.Main) {
-                _isRefreshing.value = true
-            }
+    private fun launch(block: suspend () -> Unit): Job {
+        if (_isRefreshing.value) return Job().apply { complete() }
+        _isRefreshing.value = true
+        return viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
-                block()
+                withContext(Dispatchers.IO) { block() }
+            } catch (exception: CancellationException) {
+                throw exception
             } catch (e: Exception) {
                 withContext (Dispatchers.Main) {
                     Log.e(TAG, e.message, e)
-                    navController.navigate("error/${e.message}") {
+                    navController.navigate("error/${Uri.encode(e.message ?: "Operation failed")}") {
                         popUpTo("main")
                     }
                 }
-            }
-            viewModelScope.launch(Dispatchers.Main) {
+            } finally {
                 _isRefreshing.value = false
             }
         }

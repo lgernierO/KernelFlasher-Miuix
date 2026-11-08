@@ -1,6 +1,7 @@
 package com.github.curiousnom.kernelflasher.ui.screens.reboot
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.lifecycle.ViewModel
@@ -8,7 +9,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.nio.FileSystemManager
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -25,20 +29,24 @@ class RebootViewModel(
     val isRefreshing: Boolean
         get() = _isRefreshing.value
 
-    private fun launch(block: suspend () -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _isRefreshing.value = true
+    private fun launch(block: suspend () -> Unit): Job {
+        if (_isRefreshing.value) return Job().apply { complete() }
+        _isRefreshing.value = true
+        return viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
-                block()
+                withContext(Dispatchers.IO) { block() }
+            } catch (exception: CancellationException) {
+                throw exception
             } catch (e: Exception) {
                 withContext (Dispatchers.Main) {
                     Log.e(TAG, e.message, e)
-                    navController.navigate("error/${e.message}") {
+                    navController.navigate("error/${Uri.encode(e.message ?: "Operation failed")}") {
                         popUpTo("main")
                     }
                 }
+            } finally {
+                _isRefreshing.value = false
             }
-            _isRefreshing.value = false
         }
     }
 

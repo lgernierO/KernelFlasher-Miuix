@@ -24,12 +24,16 @@ import com.github.curiousnom.kernelflasher.common.types.partitions.Partitions
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.nio.ExtendedFile
 import com.topjohnwu.superuser.nio.FileSystemManager
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.IOException
 import java.security.DigestOutputStream
 import java.security.MessageDigest
 import java.time.LocalDateTime
@@ -139,20 +143,24 @@ class SlotViewModel(
         inInit = false
     }
 
-    private fun launch(block: suspend () -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _isRefreshing.value = true
+    private fun launch(block: suspend () -> Unit): Job {
+        if (_isRefreshing.value) return Job().apply { complete() }
+        _isRefreshing.value = true
+        return viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
-                block()
+                withContext(Dispatchers.IO) { block() }
+            } catch (exception: CancellationException) {
+                throw exception
             } catch (e: Exception) {
                 withContext (Dispatchers.Main) {
                     Log.e(TAG, e.message, e)
-                    navController.navigate("error/${e.message}") {
+                    navController.navigate("error/${Uri.encode(e.message ?: "Operation failed")}") {
                         popUpTo("main")
                     }
                 }
+            } finally {
+                _isRefreshing.value = false
             }
-            _isRefreshing.value = false
         }
     }
 
@@ -273,18 +281,21 @@ class SlotViewModel(
         }
     }
 
-    fun unmountVendorDlkm(context: Context) {
+    fun unmountVendorDlkm(context: Context) =
         launch {
             val httools = File(context.filesDir, "httools_static")
-            Shell.cmd("$httools umount vendor_dlkm").exec()
+            if (!Shell.cmd("$httools umount vendor_dlkm").exec().isSuccess) {
+                throw IOException("Unmounting vendor_dlkm failed")
+            }
             refresh(context)
         }
-    }
 
     fun mountVendorDlkm(context: Context) {
         launch {
             val httools = File(context.filesDir, "httools_static")
-            Shell.cmd("$httools mount vendor_dlkm").exec()
+            if (!Shell.cmd("$httools mount vendor_dlkm").exec().isSuccess) {
+                throw IOException("Mounting vendor_dlkm failed")
+            }
             refresh(context)
         }
     }
@@ -296,11 +307,12 @@ class SlotViewModel(
             val vendorDlkm = fileSystemManager.getFile(mapperDir, "vendor_dlkm$slotSuffix")
             if (vendorDlkm.exists()) {
                 val vendorDlkmVerity = fileSystemManager.getFile(mapperDir, "vendor_dlkm-verity")
-                if (vendorDlkmVerity.exists()) {
+                val result = if (vendorDlkmVerity.exists()) {
                     Shell.cmd("$lptools unmap vendor_dlkm-verity").exec()
                 } else {
                     Shell.cmd("$lptools unmap vendor_dlkm$slotSuffix").exec()
                 }
+                if (!result.isSuccess) throw IOException("Unmapping vendor_dlkm failed")
             }
             refresh(context)
         }
@@ -309,7 +321,9 @@ class SlotViewModel(
     fun mapVendorDlkm(context: Context) {
         launch {
             val lptools = File(context.filesDir, "lptools_static")
-            Shell.cmd("$lptools map vendor_dlkm$slotSuffix").exec()
+            if (!Shell.cmd("$lptools map vendor_dlkm$slotSuffix").exec().isSuccess) {
+                throw IOException("Mapping vendor_dlkm failed")
+            }
             refresh(context)
         }
     }
@@ -430,18 +444,28 @@ class SlotViewModel(
     }
 
     private fun resetSlot() {
-        if (!wasSlotReset) {
-            val activeSlotSuffix = Shell.cmd("getprop ro.boot.slot_suffix").exec().out.firstOrNull() ?: ""
-            originalSlotSuffix = activeSlotSuffix
-            val targetSlot = if (slotSuffix.isNotEmpty()) slotSuffix else (if (activeSlotSuffix == "_a") "_b" else "_a")
-            Shell.cmd("resetprop -n ro.boot.slot_suffix $targetSlot || magisk resetprop -n ro.boot.slot_suffix $targetSlot").exec()
-            wasSlotReset = true
-        } else {
-            val restoreSlot = originalSlotSuffix ?: (if (Shell.cmd("getprop ro.boot.slot_suffix").exec().out.firstOrNull() == "_a") "_b" else "_a")
-            Shell.cmd("resetprop -n ro.boot.slot_suffix $restoreSlot || magisk resetprop -n ro.boot.slot_suffix $restoreSlot").exec()
-            wasSlotReset = false
-            originalSlotSuffix = null
+        restoreSlot()
+        val slotResult = Shell.cmd("getprop ro.boot.slot_suffix").exec()
+        val activeSlotSuffix = slotResult.out.firstOrNull()
+        if (!slotResult.isSuccess || activeSlotSuffix !in listOf("_a", "_b")) {
+            throw IOException("Unable to determine the active slot")
         }
+        originalSlotSuffix = activeSlotSuffix
+        val targetSlot = if (slotSuffix.isNotEmpty()) slotSuffix else if (activeSlotSuffix == "_a") "_b" else "_a"
+        wasSlotReset = true
+        if (!Shell.cmd("resetprop -n ro.boot.slot_suffix $targetSlot || magisk resetprop -n ro.boot.slot_suffix $targetSlot").exec().isSuccess) {
+            throw IOException("Failed to select slot $targetSlot")
+        }
+    }
+
+    private fun restoreSlot() {
+        if (!wasSlotReset) return
+        val originalSlot = originalSlotSuffix ?: throw IOException("Original slot is unknown")
+        if (!Shell.cmd("resetprop -n ro.boot.slot_suffix $originalSlot || magisk resetprop -n ro.boot.slot_suffix $originalSlot").exec().isSuccess) {
+            throw IOException("Failed to restore slot $originalSlot")
+        }
+        wasSlotReset = false
+        originalSlotSuffix = null
     }
 
     @Suppress("FunctionName")
@@ -470,7 +494,6 @@ class SlotViewModel(
     @Suppress("FunctionName")
     private fun _copyFile(context: Context, currentBackup: String, filename: String) {
         flashUri = null
-        flashFilename = filename
         @SuppressLint("SdCardPath")
         val externalDir = File("/sdcard/KernelFlasher")
         val backupsDir = fileSystemManager.getFile("$externalDir/backups")
@@ -478,42 +501,58 @@ class SlotViewModel(
         if (!backupDir.exists()) {
             log(context, "Backup $currentBackup does not exists", shouldThrow = true)
         }
-        val source = backupDir.getChildFile(flashFilename!!)
-        val zip = File(context.filesDir, flashFilename!!)
-        source.newInputStream().use { inputStream ->
-            zip.outputStream().use { outputStream ->
-                inputStream.copyTo(outputStream)
+        if (currentBackup != File(currentBackup).name || currentBackup in listOf("", ".", "..") || filename != File(filename).name || filename in listOf("", ".", "..")) {
+            throw IOException("Invalid backup filename")
+        }
+        val source = backupDir.getChildFile(filename)
+        val zip = File.createTempFile("flash-", ".zip", context.filesDir)
+        flashFilename = zip.name
+        try {
+            source.newInputStream().use { inputStream ->
+                zip.outputStream().use { outputStream ->
+                    if (inputStream.copyTo(outputStream) == 0L) throw IOException("Selected file is empty")
+                }
             }
+        } catch (exception: Exception) {
+            zip.delete()
+            throw exception
         }
     }
 
     @Suppress("FunctionName")
     private fun _copyFile(context: Context, uri: Uri) {
         flashUri = uri
-        flashFilename = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        val displayName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             if (!cursor.moveToFirst()) return@use null
             val name = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            return@use cursor.getString(name)
+            return@use if (name >= 0) cursor.getString(name) else null
         } ?: "ak3.zip"
         val source = context.contentResolver.openInputStream(uri)
-        val file = File(context.filesDir, flashFilename!!)
+            ?: throw IOException("Unable to read selected file")
         source.use { inputStream ->
-            file.outputStream().use { outputStream ->
-                inputStream?.copyTo(outputStream)
+            val file = File.createTempFile("flash-", if (displayName.endsWith(".zip", ignoreCase = true)) ".zip" else ".img", context.filesDir)
+            flashFilename = file.name
+            try {
+                file.outputStream().use { outputStream ->
+                    if (inputStream.copyTo(outputStream) == 0L) throw IOException("Selected file is empty")
+                }
+            } catch (exception: Exception) {
+                file.delete()
+                throw exception
             }
         }
     }
 
     @Suppress("FunctionName")
     private suspend fun _flashAk3(context: Context) {
-        if (!isActive) {
-            resetSlot()
-        }
         val zip = File(context.filesDir.canonicalPath, flashFilename!!)
-        _checkZip(context, zip)
+        _wasFlashSuccess.value = false
         try {
+            _checkZip(context, zip)
+            if (!isActive) {
+                resetSlot()
+            }
             if (zip.exists()) {
-                _wasFlashSuccess.value = false
                 val files = File(context.filesDir.canonicalPath)
                 val flashScript = File(files, "flash_ak3.sh")
                 val result = Shell.Builder.create().setFlags(Shell.FLAG_MOUNT_MASTER).build().newJob().add("F=$files Z=\"$zip\" /system/bin/sh $flashScript").to(flashOutput, flashOutput).exec()
@@ -523,17 +562,14 @@ class SlotViewModel(
                 } else {
                     log(context, "Failed to flash zip", shouldThrow = false)
                 }
-                clearTmp(context)
             } else {
                 log(context, "AK3 zip is missing", shouldThrow = true)
             }
-        } catch (e: Exception) {
-            clearFlash(context)
-            throw e
         } finally {
+            clearTmp(context)
             uiPrint("")
             if (wasSlotReset) {
-                resetSlot()
+                restoreSlot()
             }
         }
     }
@@ -559,11 +595,12 @@ class SlotViewModel(
             _clearFlash()
             addMessage("Copying image ...")
             _copyFile(context, uri)
-            if (!isActive) {
-                resetSlot()
-            }
             val image = fileSystemManager.getFile(context.filesDir, flashFilename!!)
+            _wasFlashSuccess.value = false
             try {
+                if (!isActive) {
+                    resetSlot()
+                }
                 if (image.exists()) {
                     addMessage("Copied $flashFilename")
                     _wasFlashSuccess.value = false
@@ -588,13 +625,11 @@ class SlotViewModel(
                 } else {
                     log(context, "Partition image is missing", shouldThrow = true)
                 }
-            } catch (e: Exception) {
-                clearFlash(context)
-                throw e
             } finally {
+                clearTmp(context)
                 addMessage("")
                 if (wasSlotReset) {
-                    resetSlot()
+                    restoreSlot()
                 }
             }
         }

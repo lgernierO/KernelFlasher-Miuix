@@ -76,4 +76,5 @@
     <string name="operation_running">Operação em andamento</string>
     <string name="operation_completed">Operação concluída</string>
     <string name="operation_failed">Falha na operação</string>
+    <string name="unmount_vendor_dlkm_confirm">Toque novamente para confirmar a desmontagem do Vendor DLKM.</string>
 </resources>

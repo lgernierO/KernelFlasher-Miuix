@@ -76,4 +76,5 @@
     <string name="operation_running">正在執行</string>
     <string name="operation_completed">操作完成</string>
     <string name="operation_failed">操作失敗</string>
+    <string name="unmount_vendor_dlkm_confirm">再次點擊以確認卸載 Vendor DLKM。</string>
 </resources>

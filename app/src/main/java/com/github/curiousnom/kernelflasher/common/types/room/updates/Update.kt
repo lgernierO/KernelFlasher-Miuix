@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Transient
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -14,15 +15,28 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonTransformingSerializer
 import kotlinx.serialization.json.buildJsonObject
+import java.text.ParsePosition
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 object DateSerializer : KSerializer<Date> {
     override val descriptor = PrimitiveSerialDescriptor("Date", PrimitiveKind.STRING)
-    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    private val datePattern = Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}")
+    val formatter: SimpleDateFormat
+        get() = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
+
     override fun serialize(encoder: Encoder, value: Date) = encoder.encodeString(formatter.format(value))
-    override fun deserialize(decoder: Decoder): Date = formatter.parse(decoder.decodeString())!!
+    override fun deserialize(decoder: Decoder): Date {
+        val value = decoder.decodeString()
+        if (!datePattern.matches(value)) throw SerializationException("Invalid date: $value")
+        val position = ParsePosition(0)
+        val date = formatter.parse(value, position)
+        if (date == null || position.index != value.length) {
+            throw SerializationException("Invalid date: $value")
+        }
+        return date
+    }
 }
 
 object UpdateSerializer : JsonTransformingSerializer<Update>(Update.serializer()) {
@@ -87,7 +101,7 @@ data class Update(
     @ColumnInfo(name = "kernel_sha1")
     var kernelSha1: String,
     @ColumnInfo(name = "support_link")
-    var supportLink: String?,
+    var supportLink: String? = null,
     @ColumnInfo(name = "last_updated")
     @Transient
     var lastUpdated: Date? = null,

@@ -1,7 +1,5 @@
 package com.github.curiousnom.kernelflasher
 
-import android.animation.ObjectAnimator
-import android.animation.PropertyValuesHolder
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
@@ -10,7 +8,6 @@ import android.os.IBinder
 import android.util.Log
 import android.view.View
 import android.view.ViewTreeObserver
-import android.view.animation.AccelerateInterpolator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,7 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.res.stringResource
-import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -125,23 +121,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         splashScreen.setOnExitAnimationListener { splashScreenView ->
-            val scale = ObjectAnimator.ofPropertyValuesHolder(
-                splashScreenView.view,
-                PropertyValuesHolder.ofFloat(
-                    View.SCALE_X,
-                    1f,
-                    0f
-                ),
-                PropertyValuesHolder.ofFloat(
-                    View.SCALE_Y,
-                    1f,
-                    0f
-                )
-            )
-            scale.interpolator = AccelerateInterpolator()
-            scale.duration = 250L
-            scale.doOnEnd { splashScreenView.remove() }
-            scale.start()
+            splashScreenView.remove()
         }
 
         val content: View = findViewById(android.R.id.content)

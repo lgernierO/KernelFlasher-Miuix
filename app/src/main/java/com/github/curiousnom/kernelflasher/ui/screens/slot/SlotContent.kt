@@ -12,6 +12,7 @@ import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -20,6 +21,7 @@ import androidx.navigation.NavController
 import com.github.curiousnom.kernelflasher.R
 import com.github.curiousnom.kernelflasher.ui.components.SectionTitle
 import com.github.curiousnom.kernelflasher.ui.components.SlotCard
+import com.github.curiousnom.kernelflasher.ui.components.VendorDlkmCard
 import kotlinx.serialization.ExperimentalSerializationApi
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -117,31 +119,20 @@ fun ColumnScope.SlotContent(
             if (viewModel.hasVendorDlkm) {
                 Spacer(Modifier.height(12.dp))
                 SectionTitle(stringResource(R.string.vendor_dlkm))
-                Card(Modifier.fillMaxWidth()) {
-                    if (viewModel.isVendorDlkmMounted) {
-                        ArrowPreference(
-                            title = stringResource(R.string.unmount_vendor_dlkm),
-                            enabled = !viewModel.isRefreshing,
-                            onClick = { viewModel.unmountVendorDlkm(context) },
-                        )
-                    } else if (viewModel.isVendorDlkmMapped) {
-                        ArrowPreference(
-                            title = stringResource(R.string.mount_vendor_dlkm),
-                            enabled = !viewModel.isRefreshing,
-                            onClick = { viewModel.mountVendorDlkm(context) },
-                        )
-                        ArrowPreference(
-                            title = stringResource(R.string.unmap_vendor_dlkm),
-                            enabled = !viewModel.isRefreshing,
-                            onClick = { viewModel.unmapVendorDlkm(context) },
-                        )
-                    } else {
-                        ArrowPreference(
-                            title = stringResource(R.string.map_vendor_dlkm),
-                            enabled = !viewModel.isRefreshing,
-                            onClick = { viewModel.mapVendorDlkm(context) },
-                        )
-                    }
+                key(slotSuffix, viewModel) {
+                    VendorDlkmCard(
+                        isMounted = viewModel.isVendorDlkmMounted,
+                        isMapped = viewModel.isVendorDlkmMapped,
+                        busy = viewModel.isRefreshing,
+                        onUnmount = {
+                            if (!viewModel.isRefreshing && viewModel.isVendorDlkmMounted) {
+                                viewModel.unmountVendorDlkm(context).join()
+                            }
+                        },
+                        onMount = { viewModel.mountVendorDlkm(context) },
+                        onUnmap = { viewModel.unmapVendorDlkm(context) },
+                        onMap = { viewModel.mapVendorDlkm(context) },
+                    )
                 }
             }
         }

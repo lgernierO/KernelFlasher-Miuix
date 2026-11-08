@@ -14,11 +14,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import androidx.room.Room
+import com.github.curiousnom.kernelflasher.common.extensions.ByteArray.toHex
 import com.github.curiousnom.kernelflasher.common.types.room.AppDatabase
 import com.github.curiousnom.kernelflasher.common.types.room.updates.Update
 import com.github.curiousnom.kernelflasher.common.types.room.updates.UpdateSerializer
 import com.topjohnwu.superuser.nio.FileSystemManager
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -26,6 +32,9 @@ import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -60,28 +69,28 @@ class UpdatesViewModel(
     init {
         launch {
             val updates = updateDao.getAll()
-            viewModelScope.launch(Dispatchers.Main) {
+            withContext(Dispatchers.Main) {
                 _updates.addAll(updates)
             }
         }
     }
 
-    private fun launch(block: suspend () -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            viewModelScope.launch(Dispatchers.Main) {
-                _isRefreshing.value = true
-            }
+    private fun launch(block: suspend () -> Unit): Job {
+        if (_isRefreshing.value) return Job().apply { complete() }
+        _isRefreshing.value = true
+        return viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
-                block()
+                withContext(Dispatchers.IO) { block() }
+            } catch (exception: CancellationException) {
+                throw exception
             } catch (e: Exception) {
                 withContext (Dispatchers.Main) {
                     Log.e(TAG, e.message, e)
-                    navController.navigate("error/${e.message}") {
+                    navController.navigate("error/${Uri.encode(e.message ?: "Operation failed")}") {
                         popUpTo("main")
                     }
                 }
-            }
-            viewModelScope.launch(Dispatchers.Main) {
+            } finally {
                 _isRefreshing.value = false
             }
         }
@@ -144,7 +153,7 @@ class UpdatesViewModel(
                         it.kernelSha1 = update.kernelSha1
                         it.supportLink = update.supportLink
                         it.lastUpdated = Date()
-                        viewModelScope.launch(Dispatchers.IO) {
+                        withContext(Dispatchers.IO) {
                             updateDao.update(it)
                         }
                     }
@@ -175,27 +184,50 @@ class UpdatesViewModel(
         values.put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
         values.put(MediaStore.MediaColumns.MIME_TYPE, "application/zip")
         values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        values.put(MediaStore.MediaColumns.IS_PENDING, 1)
         return resolver.insert(MediaStore.Files.getContentUri("external"), values)
     }
 
     fun downloadKernel(context: Context) {
         launch {
-            val remoteUri = Uri.parse(currentUpdate!!.kernelLink)
+            val update = currentUpdate ?: throw IOException("No update selected")
+            val expectedSha1 = update.kernelSha1
+            if (!Regex("[0-9a-fA-F]{40}").matches(expectedSha1)) {
+                throw IOException("Invalid kernel SHA-1 in update metadata")
+            }
+            val remoteUri = Uri.parse(update.kernelLink)
             val filename = Path(remoteUri.path!!).name
+            val request = Request.Builder().url(remoteUri.toString()).build()
+            val resolver = context.contentResolver
             val localUri = insertDownload(context, filename)
-            localUri!!.let { uri ->
-                val request = Request.Builder()
-                    .url(remoteUri.toString())
-                    .build()
-
+                ?: throw IOException("Unable to create download")
+            var completed = false
+            try {
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) throw IOException("Unexpected response: $response")
-                    response.body!!.byteStream().use { inputStream ->
-                        context.contentResolver.openOutputStream(uri)!!.use { outputStream ->
-                            inputStream.copyTo(outputStream)
+                    val body = response.body ?: throw IOException("Empty download response")
+                    body.byteStream().use { inputStream ->
+                        val output = resolver.openOutputStream(localUri)
+                            ?: throw IOException("Unable to open download")
+                        output.use { outputStream ->
+                            copyVerifiedKernel(inputStream, outputStream, expectedSha1)
                         }
                     }
-                    log(context, "Saved $filename to Downloads")
+                }
+                currentCoroutineContext().ensureActive()
+                val values = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+                if (resolver.update(localUri, values, null, null) == 0) {
+                    throw IOException("Unable to publish download")
+                }
+                completed = true
+                log(context, "Saved $filename to Downloads")
+            } finally {
+                if (!completed) {
+                    try {
+                        resolver.delete(localUri, null, null)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Unable to remove incomplete download", e)
+                    }
                 }
             }
         }
@@ -210,5 +242,20 @@ class UpdatesViewModel(
                 currentUpdate = null
             }
         }
+    }
+}
+
+internal suspend fun copyVerifiedKernel(input: InputStream, output: OutputStream, expectedSha1: String) {
+    val digest = MessageDigest.getInstance("SHA-1")
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    while (true) {
+        currentCoroutineContext().ensureActive()
+        val count = input.read(buffer)
+        if (count == -1) break
+        digest.update(buffer, 0, count)
+        output.write(buffer, 0, count)
+    }
+    if (!digest.digest().toHex().equals(expectedSha1, ignoreCase = true)) {
+        throw IOException("Downloaded kernel SHA-1 does not match update metadata")
     }
 }

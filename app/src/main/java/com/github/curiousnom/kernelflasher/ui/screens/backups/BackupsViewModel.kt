@@ -2,6 +2,7 @@ package com.github.curiousnom.kernelflasher.ui.screens.backups
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.runtime.MutableState
@@ -14,6 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.github.curiousnom.kernelflasher.common.PartitionUtil
+import com.github.curiousnom.kernelflasher.common.extensions.ByteArray.toHex
 import com.github.curiousnom.kernelflasher.common.extensions.ExtendedFile.outputStream
 import com.github.curiousnom.kernelflasher.common.extensions.ExtendedFile.readText
 import com.github.curiousnom.kernelflasher.common.types.backups.Backup
@@ -21,13 +23,19 @@ import com.github.curiousnom.kernelflasher.common.types.partitions.Partitions
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.nio.ExtendedFile
 import com.topjohnwu.superuser.nio.FileSystemManager
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
+import java.security.MessageDigest
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Properties
@@ -104,19 +112,25 @@ class BackupsViewModel(
     }
 
     private fun launch(block: suspend () -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _isRefreshing.value = true
+        if (_isRefreshing.value) return
+        _isRefreshing.value = true
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
-                block()
+                withContext(Dispatchers.IO) {
+                    block()
+                }
+            } catch (exception: CancellationException) {
+                throw exception
             } catch (e: Exception) {
                 withContext (Dispatchers.Main) {
                     Log.e(TAG, e.message, e)
-                    navController.navigate("error/${e.message}") {
+                    navController.navigate("error/${Uri.encode(e.message ?: e.javaClass.simpleName)}") {
                         popUpTo("main")
                     }
                 }
+            } finally {
+                _isRefreshing.value = false
             }
-            _isRefreshing.value = false
         }
     }
 
@@ -171,26 +185,62 @@ class BackupsViewModel(
         }
     }
 
-    private fun restorePartitions(context: Context, source: ExtendedFile, slotSuffix: String): Partitions? {
-        val partitions = HashMap<String, String>()
-        for (partitionName in PartitionUtil.PartitionNames) {
-            if (_backups[currentBackup]?.hashes == null || _backupPartitions[partitionName] == true) {
-                val image = source.getChildFile("$partitionName.img")
-                if (image.exists()) {
-                    val blockDevice = PartitionUtil.findPartitionBlockDevice(context, partitionName, slotSuffix)
-                    if (blockDevice != null && blockDevice.exists()) {
-                        addMessage("Restoring $partitionName")
-                        partitions[partitionName] = if (PartitionUtil.isPartitionLogical(context, partitionName)) {
-                            PartitionUtil.flashLogicalPartition(context, image, blockDevice, partitionName, slotSuffix, hashAlgorithm) { message ->
-                                addMessage(message)
-                            }
-                        } else {
-                            PartitionUtil.flashBlockDevice(image, blockDevice, hashAlgorithm)
-                        }
-                    } else {
-                        log(context, "Partition $partitionName was not found", shouldThrow = true)
-                    }
+    private suspend fun restorePartitions(context: Context, source: ExtendedFile, slotSuffix: String, backup: Backup): Partitions? {
+        val selection = _backupPartitions.toMap()
+        val selectedPartitions = PartitionUtil.PartitionNames.filter { partitionName ->
+            if (backup.hashes != null || selection.isNotEmpty()) {
+                selection[partitionName] == true
+            } else {
+                source.getChildFile("$partitionName.img").exists()
+            }
+        }
+        val restoreHashAlgorithm = backup.hashAlgorithm?.takeIf { it.isNotBlank() } ?: hashAlgorithm
+        val coroutineContext = currentCoroutineContext()
+        val preparedPartitions = ArrayList<Triple<String, ExtendedFile, ExtendedFile>>()
+        for (partitionName in selectedPartitions) {
+            coroutineContext.ensureActive()
+            val image = source.getChildFile("$partitionName.img")
+            if (!image.exists()) {
+                throw IOException("Backup image $partitionName.img was not found")
+            }
+            val expectedHash = backup.hashes?.let { hashes ->
+                hashes.get(partitionName)
+                    ?: throw IOException("Backup hash for $partitionName was not found")
+            }
+            val digest = if (expectedHash != null) MessageDigest.getInstance(restoreHashAlgorithm) else null
+            var imageSize = 0L
+            image.newInputStream().use { inputStream ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    coroutineContext.ensureActive()
+                    val count = inputStream.read(buffer)
+                    if (count < 0) break
+                    imageSize += count
+                    digest?.update(buffer, 0, count)
                 }
+            }
+            if (imageSize == 0L) {
+                throw IOException("Backup image $partitionName.img is empty")
+            }
+            if (digest != null && !digest.digest().toHex().equals(expectedHash, ignoreCase = true)) {
+                throw IOException("Backup hash mismatch for $partitionName")
+            }
+            val blockDevice = PartitionUtil.findPartitionBlockDevice(context, partitionName, slotSuffix)
+            if (blockDevice == null || !blockDevice.exists()) {
+                throw IOException("Partition $partitionName was not found")
+            }
+            preparedPartitions.add(Triple(partitionName, image, blockDevice))
+        }
+        val partitions = HashMap<String, String>()
+        for ((partitionName, image, blockDevice) in preparedPartitions) {
+            coroutineContext.ensureActive()
+            addMessage("Restoring $partitionName")
+            partitions[partitionName] = if (PartitionUtil.isPartitionLogical(context, partitionName)) {
+                PartitionUtil.flashLogicalPartition(context, image, blockDevice, partitionName, slotSuffix, restoreHashAlgorithm) { message ->
+                    addMessage(message)
+                }
+            } else {
+                PartitionUtil.flashBlockDevice(image, blockDevice, restoreHashAlgorithm)
             }
         }
         if (partitions.isNotEmpty()) {
@@ -202,20 +252,23 @@ class BackupsViewModel(
     fun restore(context: Context, slotSuffix: String) {
         launch {
             _clearRestore()
+            wasRestored = false
+            val backupId = currentBackup ?: throw IOException("No backup selected")
+            val backup = _backups[backupId] ?: throw IOException("Backup $backupId was not found")
             @SuppressLint("SdCardPath")
             val externalDir = File("/sdcard/KernelFlasher")
             val backupsDir = fileSystemManager.getFile("$externalDir/backups")
-            val backupDir = backupsDir.getChildFile(currentBackup!!)
+            val backupDir = backupsDir.getChildFile(backupId)
             if (!backupDir.exists()) {
-                log(context, "Backup $currentBackup does not exists", shouldThrow = true)
+                log(context, "Backup $backupId does not exists", shouldThrow = true)
                 return@launch
             }
-            addMessage("Restoring backup $currentBackup")
-            val hashes = restorePartitions(context, backupDir, slotSuffix)
+            addMessage("Restoring backup $backupId")
+            val hashes = restorePartitions(context, backupDir, slotSuffix, backup)
             if (hashes == null) {
                 log(context, "No partitions restored", shouldThrow = true)
             }
-            addMessage("Backup $currentBackup restored")
+            addMessage("Backup $backupId restored")
             wasRestored = true
         }
     }
