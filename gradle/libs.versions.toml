@@ -15,7 +15,7 @@ libsu = "6.0.0"
 okhttp = "5.5.1"
 
 android-application = "9.5.1"
-devtools-ksp = "2.3.13"
+devtools-ksp = "2.3.14"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidx-activity-compose" }
