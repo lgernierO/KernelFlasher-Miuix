@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.4.21"
 miuix = "0.9.4"
-compose-bom = "2026.09.00"
+compose-bom = "2026.11.01"
 
 androidx-activity-compose = "1.13.0"
 androidx-appcompat = "1.8.0"
