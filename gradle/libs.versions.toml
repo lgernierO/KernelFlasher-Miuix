@@ -14,7 +14,7 @@ kotlinx-serialization-json = "1.13.0"
 libsu = "6.0.0"
 okhttp = "5.5.1"
 
-android-application = "9.5.1"
+android-application = "9.5.2"
 devtools-ksp = "2.3.13"
 
 [libraries]
